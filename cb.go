@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/couchbase/gocb"
 )
-
 // create structur
 type Data struct {
 
@@ -17,9 +16,9 @@ type Data struct {
 func main() {
 	// connect to cluster
 	cluster, _ := gocb.Connect("127.0.0.1:8091")
-	cluster.Authenticate(gocb.PasswordAuthenticator{
-		Username: "Admin",
-		Password: "aadmin",
+	cluster.Authenticate(gocb.PasswordAuthenticator {
+		Username: "admin",
+		Password: "admin",
 	})
 
 	bucket, _ := cluster.OpenBucket("testbucket", "")
@@ -29,8 +28,7 @@ func main() {
 
 	// added new data
 	bucket.Upsert("test_data",
-
-		Data{
+		Data {
 
 			IP: "0.0.0.0",
 			App: []string{"foo", "bar"},
