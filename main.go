@@ -50,12 +50,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	for _, q := range r.Question {
 		name := q.Name
 		fmt.Println(name)
-	name = [:len(name)-1]	
-
 
     	var host inventory
 
-		_, err := bucket.Get(name, &host)
+		_, err := bucket.Get(name[:len(name)-1], &host)
 
 		if err != nil {
 			fmt.Println(name, err)
