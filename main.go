@@ -2,12 +2,14 @@ package main
 
 import (
 
-	//"encoding/json"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"os/package"
 	"syscall"
 
 	"github.com/couchbase/gocb"
@@ -20,13 +22,35 @@ type inventory struct {
 	Active bool     `json:"active"`
 }
 
-var conn, _ = gocb.Connect("127.0.0.1:8091")
-var cluster = conn.Authenticate(gocb.PasswordAuthenticator{Username: "Admin", Password: "aadmin"})
-var bucket, _ = conn.OpenBucket("testbucket", "")
+type Config struct {
+    Dnscb []Dnscb
+}
+
+type Dnscb struct {
+    Host    string
+    Dnsport string
+    Cluster Cluster
+}
+
+type Cluster struct {
+    Login      string
+    Pass       string
+    Bucketname string
+}
+
+var configFlag, _ = flag.String("config", "", "a string")
+var file, _ = os.Open(flag.Parse(configFlag))
+var decoder = NewDecoder(file)
+var config = new(Config)
+
+var conn, _ = gocb.Connect(config.Dnscb[0].host)
+var cluster = conn.Authenticate(gocb.PasswordAuthenticator{config.Dnscb[0].cluster.login, config.Dnscb[0].cluster.pass})
+var bucket, _ = conn.OpenBucket(config.Dnscb[0].cluster.bucketname, "")
+
 
 func main() {
 
-	server := &dns.Server{Addr: ":51", Net: "udp"}
+	server := &dns.Server{config.Dnscb[0].dnsport, Net: "udp"}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
@@ -65,7 +89,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		answer := new(dns.A)
 		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
-		answer.A = net.ParseIP(host.IP) // Preference = 10
+		answer.A = net.ParseIP(host.IP)
 		m.Answer = append(m.Answer, answer)
 	}
 
