@@ -2,16 +2,16 @@ package main
 
 import (
 
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"io/ioutil"
 	"os/signal"
-	"os/package"
 	"syscall"
 
+	"github.com/go-yaml/yaml"
 	"github.com/couchbase/gocb"
 	"github.com/miekg/dns"
 )
@@ -22,35 +22,61 @@ type inventory struct {
 	Active bool     `json:"active"`
 }
 
-type Config struct {
-    Dnscb []Dnscb
+type conf struct {
+	
+	Server struct {
+		Port    string    `yaml:"port"`
+		Network string `yaml:"network"`
+		Ttl     uint32    `yaml:"ttl"`
+	} `yaml:"server"`
+
+	Storage struct {
+		Login    string `yaml:"login"`
+		Password string `yaml:"password"`
+		Bucket   string `yaml:"bucket"`
+		Hosts []string `yaml:"hosts"`
+	} `yaml:"storage"`
 }
 
-type Dnscb struct {
-    Host    string
-    Dnsport string
-    Cluster Cluster
+var configFlag = flag.String("config", "./config.yaml", "set config file in the yaml format")
+var config conf
+
+func configure() conf {
+
+	configFile, err := ioutil.ReadFile(*configFlag)
+	if err != nil {
+    	fmt.Println(err)
+	}
+
+    var c  conf
+	err = yaml.Unmarshal(configFile, &c)
+
+	if err != nil {
+		fmt.Println("can't unmarshal", *configFlag, err)
+	}
+
+	return c
 }
 
-type Cluster struct {
-    Login      string
-    Pass       string
-    Bucketname string
-}
-
-var configFlag, _ = flag.String("config", "", "a string")
-var file, _ = os.Open(flag.Parse(configFlag))
-var decoder = NewDecoder(file)
-var config = new(Config)
-
-var conn, _ = gocb.Connect(config.Dnscb[0].host)
-var cluster = conn.Authenticate(gocb.PasswordAuthenticator{config.Dnscb[0].cluster.login, config.Dnscb[0].cluster.pass})
-var bucket, _ = conn.OpenBucket(config.Dnscb[0].cluster.bucketname, "")
-
+var bucket *gocb.Bucket
 
 func main() {
 
-	server := &dns.Server{config.Dnscb[0].dnsport, Net: "udp"}
+	flag.Parse()
+	config = configure()
+	fmt.Printf("%+v",config)
+	
+	conn, err := gocb.Connect(config.Storage.Hosts[0])
+	if err != nil {
+    	fmt.Println(err)
+	}
+	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
+	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
+	if err != nil {
+    	// ...
+	}
+
+	server := &dns.Server{Addr: ":" + config.Server.Port, Net: config.Server.Network}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
@@ -88,7 +114,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		answer := new(dns.A)
-		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600}
+		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Server.Ttl}
 		answer.A = net.ParseIP(host.IP)
 		m.Answer = append(m.Answer, answer)
 	}
@@ -96,4 +122,5 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	fmt.Printf("%+v\n", m)
 	w.WriteMsg(m)
+	fmt.Printf("%+v\n", config)
 }
