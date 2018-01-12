@@ -23,22 +23,22 @@ type inventory struct {
 }
 
 type conf struct {
-	
+
 	Server struct {
-		Port    string    `yaml:"port"`
+		Port    string `yaml:"port"`
 		Network string `yaml:"network"`
-		Ttl     uint32    `yaml:"ttl"`
+		Ttl     uint32 `yaml:"ttl"`
 	} `yaml:"server"`
 
 	Storage struct {
 		Login    string `yaml:"login"`
 		Password string `yaml:"password"`
 		Bucket   string `yaml:"bucket"`
-		Hosts []string `yaml:"hosts"`
+		Hosts  []string `yaml:"hosts"`
 	} `yaml:"storage"`
 }
 
-var configFlag = flag.String("config", "./config.yaml", "set config file in the yaml format")
+var configFlag = flag.String("config", "./default.yaml", "set config file in the yaml format")
 var config conf
 
 func configure() conf {
@@ -48,13 +48,13 @@ func configure() conf {
     	fmt.Println(err)
 	}
 
-    var c  conf
+    var c conf
 	err = yaml.Unmarshal(configFile, &c)
 
 	if err != nil {
 		fmt.Println("can't unmarshal", *configFlag, err)
 	}
-
+	
 	return c
 }
 
@@ -64,16 +64,16 @@ func main() {
 
 	flag.Parse()
 	config = configure()
-	fmt.Printf("%+v",config)
+	fmt.Printf("%+v", "Configuration:\n", config)
 	
 	conn, err := gocb.Connect(config.Storage.Hosts[0])
 	if err != nil {
-    	fmt.Println(err)
+    	fmt.Println("Failed connect to ", *conn, err)
 	}
 	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
 	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
 	if err != nil {
-    	// ...
+    	fmt.Println("Failed open bucket: ", *bucket, err)
 	}
 
 	server := &dns.Server{Addr: ":" + config.Server.Port, Net: config.Server.Network}
