@@ -45,14 +45,14 @@ func configure() conf {
 
 	configFile, err := ioutil.ReadFile(*configFlag)
 	if err != nil {
-    	fmt.Println(err)
+		fmt.Println("Failed read configuration file: ", err)
 	}
 
     var c conf
 	err = yaml.Unmarshal(configFile, &c)
 
 	if err != nil {
-		fmt.Println("can't unmarshal", *configFlag, err)
+		fmt.Println("Failed unmarshal ", *configFlag, err)
 	}
 	
 	return c
