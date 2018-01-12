@@ -1,0 +1,10 @@
+server:
+  port: 53
+  network: udp
+  ttl: 3600
+storage:
+  login: Admin
+  password: aadmin
+  bucket: testbucket
+  hosts:
+    - 127.0.0.1:8091
