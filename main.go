@@ -64,7 +64,7 @@ func main() {
 
 	flag.Parse()
 	config = configure()
-	fmt.Printf("%+v", "Configuration:\n", config)
+	fmt.Printf("Configuration:%+v\n", config)
 	
 	conn, err := gocb.Connect(config.Storage.Hosts[0])
 	if err != nil {
