@@ -137,7 +137,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func manager(w http.ResponseWriter, r *http.Request) {
-	
+
 	res := r.Method
 
 	switch res {
@@ -146,15 +146,25 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		var result inventory
 		req := r.URL.Path[len("/manager/"):]
 		bucket.Get(req, &result)
-		fmt.Println("Data: ", result)
+		fmt.Println(req, ":", result)
 
+	//TODO: finish
 	case "POST":
+
 		fmt.Println("this is POST method")
+
 	case "DELETE":
-		fmt.Println("this is DELETE method")
+
+		req := r.URL.Path[len("/manager/"):]
+		bucket.Remove(req, 0)
+	
+	//TODO: finish
 	case "UPDATE":
+
 		fmt.Println("this is UPDATE method")
+
 	default:
+
 		fmt.Println("Error: ", "\"", res, "\"", " - unknown method. Using GET, POST, DELETE or UPDATE method.")
 	}
 }

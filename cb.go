@@ -42,4 +42,7 @@ func main () {
 	var inData Data
 	bucket.Get("test_data", &inData)
 	fmt.Println("Data: ", inData)
+
+	//deleting data
+	//bucket.Remove("test_data", 0)
 }
