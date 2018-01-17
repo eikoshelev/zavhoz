@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -28,10 +29,14 @@ type inventory struct {
 // config file structure
 type conf struct {
 	Server struct {
-		Dns_port  string `yaml:"dns_port"`
-		Http_port string `yaml:"http_port"`
-		Network   string `yaml:"network"`
-		Ttl       uint32 `yaml:"ttl"`
+		Http struct {
+			Http_port string `yaml:"http_port"`
+		} `yaml:"http"`
+		Dns struct {
+			Dns_port string `yaml:"dns_port"`
+			Network  string `yaml:"network"`
+			Ttl      uint32 `yaml:"ttl"`
+		} `yaml:"dns"`
 	} `yaml:"server"`
 
 	Storage struct {
@@ -83,12 +88,12 @@ func main() {
 
 	http.HandleFunc("/manager/", manager)
 
-	errr := http.ListenAndServe(":"+config.Server.Http_port, nil)
+	errr := http.ListenAndServe(":"+config.Server.Http.Http_port, nil)
 	if errr != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
 
-	server := &dns.Server{Addr: ":" + config.Server.Dns_port, Net: config.Server.Network}
+	server := &dns.Server{Addr: ":" + config.Server.Dns.Dns_port, Net: config.Server.Dns.Network}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
@@ -126,7 +131,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		answer := new(dns.A)
-		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Server.Ttl}
+		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Server.Dns.Ttl}
 		answer.A = net.ParseIP(host.IP)
 		m.Answer = append(m.Answer, answer)
 	}
@@ -143,22 +148,27 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 
 		var result inventory
+
 		req := r.URL.Path[len("/manager/"):]
 		bucket.Get(req, &result)
 		fmt.Fprintf(w, "%v\n", result)
 
-	//TODO: finish
 	case "POST":
-		/*
-			var result inventory
-			req := r.URL.Path[len("/manager/"):]
-			err := json.Unmarshal([]byte(), &result)
-			if err != nil {
-				fmt.Println("can't unmarshal", req, err)
-			} else {
-				bucket.Upsert(req, result, 0)
-			}
-		*/
+
+		var result inventory
+
+		req := r.URL.Path[len("/manager/"):]
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("Error: ", err)
+		}
+		err = json.Unmarshal(body, &result)
+		if err != nil {
+			fmt.Println("can't unmarshal", req, err)
+		} else {
+			bucket.Upsert(req, result, 0)
+		}
+
 	case "DELETE":
 
 		req := r.URL.Path[len("/manager/"):]

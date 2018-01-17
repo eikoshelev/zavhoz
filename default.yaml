@@ -1,8 +1,10 @@
 server:
-  dns_port: 53
-  http_port: 8059
-  network: udp
-  ttl: 3600
+  http:
+    http_port: 8059
+  dns:
+    dns_port: 53
+    network: udp
+    ttl: 3600
 storage:
   login: Admin
   password: aadmin
