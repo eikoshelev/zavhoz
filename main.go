@@ -30,9 +30,10 @@ type inventory struct {
 type conf struct {
 
 	Server struct {
-		Port    string `yaml:"port"`
-		Network string `yaml:"network"`
-		Ttl     uint32 `yaml:"ttl"`
+		Dns_port  string `yaml:"port"`
+		Http_port string `yaml:"port"`
+		Network   string `yaml:"network"`
+		Ttl       uint32 `yaml:"ttl"`
 	} `yaml:"server"`
 
 	Storage struct {
@@ -84,12 +85,12 @@ func main() {
 	
 	http.HandleFunc("/manager/", manager)
 	
-	errr := http.ListenAndServe(":8059", nil)
+	errr := http.ListenAndServe(":" + config.Server.Http_port, nil)
     if errr != nil {
         log.Fatal("ListenAndServe: ", err)
     }
 
-	server := &dns.Server{Addr: ":" + config.Server.Port, Net: config.Server.Network}
+	server := &dns.Server{Addr: ":" + config.Server.Dns_port, Net: config.Server.Network}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {

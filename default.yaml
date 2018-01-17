@@ -1,5 +1,6 @@
 server:
-  port: 53
+  dns_port: 53
+  http_port: 8059
   network: udp
   ttl: 3600
 storage:
