@@ -1,19 +1,18 @@
 package main
 
 import (
-
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"os"
-	"io/ioutil"
 	"os/signal"
 	"syscall"
-	"net/http"
 
-	"github.com/go-yaml/yaml"
 	"github.com/couchbase/gocb"
+	"github.com/go-yaml/yaml"
 	"github.com/miekg/dns"
 )
 
@@ -28,10 +27,9 @@ type inventory struct {
 
 // config file structure
 type conf struct {
-
 	Server struct {
-		Dns_port  string `yaml:"port"`
-		Http_port string `yaml:"port"`
+		Dns_port  string `yaml:"dns_port"`
+		Http_port string `yaml:"http_port"`
 		Network   string `yaml:"network"`
 		Ttl       uint32 `yaml:"ttl"`
 	} `yaml:"server"`
@@ -55,13 +53,13 @@ func configure() conf {
 		fmt.Println("Failed read configuration file: ", err)
 	}
 
-    var c conf
+	var c conf
 	err = yaml.Unmarshal(configFile, &c)
 
 	if err != nil {
 		fmt.Println("Failed unmarshal ", *configFlag, err)
 	}
-	
+
 	return c
 }
 
@@ -72,23 +70,23 @@ func main() {
 	flag.Parse()
 	config = configure()
 	fmt.Printf("Configuration:%+v\n", config)
-	
+
 	conn, err := gocb.Connect(config.Storage.Hosts[0])
 	if err != nil {
-    	fmt.Println("Failed connect to ", *conn, err)
+		fmt.Println("Failed connect to ", *conn, err)
 	}
 	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
 	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
 	if err != nil {
-    	fmt.Println("Failed open bucket: ", *bucket, err)
+		fmt.Println("Failed open bucket: ", *bucket, err)
 	}
-	
+
 	http.HandleFunc("/manager/", manager)
-	
-	errr := http.ListenAndServe(":" + config.Server.Http_port, nil)
-    if errr != nil {
-        log.Fatal("ListenAndServe: ", err)
-    }
+
+	errr := http.ListenAndServe(":"+config.Server.Http_port, nil)
+	if errr != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 
 	server := &dns.Server{Addr: ":" + config.Server.Dns_port, Net: config.Server.Network}
 
@@ -115,7 +113,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		name := q.Name
 		fmt.Println(name)
 
-    	var host inventory
+		var host inventory
 
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
@@ -147,18 +145,25 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		var result inventory
 		req := r.URL.Path[len("/manager/"):]
 		bucket.Get(req, &result)
-		fmt.Println(req, ":", result)
+		fmt.Fprintf(w, "%v\n", result)
 
 	//TODO: finish
 	case "POST":
-
-		fmt.Println("this is POST method")
-
+		/*
+			var result inventory
+			req := r.URL.Path[len("/manager/"):]
+			err := json.Unmarshal([]byte(), &result)
+			if err != nil {
+				fmt.Println("can't unmarshal", req, err)
+			} else {
+				bucket.Upsert(req, result, 0)
+			}
+		*/
 	case "DELETE":
 
 		req := r.URL.Path[len("/manager/"):]
 		bucket.Remove(req, 0)
-	
+
 	//TODO: finish
 	case "UPDATE":
 
