@@ -10,18 +10,23 @@ import (
 	"io/ioutil"
 	"os/signal"
 	"syscall"
+	"net/http"
 
 	"github.com/go-yaml/yaml"
 	"github.com/couchbase/gocb"
 	"github.com/miekg/dns"
 )
 
+// the note structure in the key/value storage
 type inventory struct {
-	IP     string `json:"ip"`
-	Apps []string `json:"apps"`
-	Active bool   `json:"active"`
+	IP     string            `json:"ip"`
+	Tag    []string          `json:"tag"`
+	Apps   []string          `json:"apps"`
+	Active bool              `json:"active"`
+	Params map[string]string `json:"params"`
 }
 
+// config file structure
 type conf struct {
 
 	Server struct {
@@ -31,14 +36,15 @@ type conf struct {
 	} `yaml:"server"`
 
 	Storage struct {
-		Login    string `yaml:"login"`
-		Password string `yaml:"password"`
-		Bucket   string `yaml:"bucket"`
-		Hosts  []string `yaml:"hosts"`
+		Login    string   `yaml:"login"`
+		Password string   `yaml:"password"`
+		Bucket   string   `yaml:"bucket"`
+		Hosts    []string `yaml:"hosts"`
 	} `yaml:"storage"`
 }
 
 var configFlag = flag.String("config", "./default.yaml", "set config file in the yaml format")
+
 var config conf
 
 func configure() conf {
@@ -75,6 +81,13 @@ func main() {
 	if err != nil {
     	fmt.Println("Failed open bucket: ", *bucket, err)
 	}
+	
+	http.HandleFunc("/manager/", manager)
+	
+	errr := http.ListenAndServe(":8059", nil)
+    if errr != nil {
+        log.Fatal("ListenAndServe: ", err)
+    }
 
 	server := &dns.Server{Addr: ":" + config.Server.Port, Net: config.Server.Network}
 
@@ -121,4 +134,27 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	fmt.Printf("%+v\n", m)
 	w.WriteMsg(m)
+}
+
+func manager(w http.ResponseWriter, r *http.Request) {
+	
+	res := r.Method
+
+	switch res {
+	case "GET":
+
+		var result inventory
+		req := r.URL.Path[len("/manager/"):]
+		bucket.Get(req, &result)
+		fmt.Println("Data: ", result)
+
+	case "POST":
+		fmt.Println("this is POST method")
+	case "DELETE":
+		fmt.Println("this is DELETE method")
+	case "UPDATE":
+		fmt.Println("this is UPDATE method")
+	default:
+		fmt.Println("Error: ", "\"", res, "\"", " - unknown method. Using GET, POST, DELETE or UPDATE method.")
+	}
 }
