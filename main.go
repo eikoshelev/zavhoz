@@ -196,23 +196,20 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		doc := r.URL.Path[len("/manager/"):]
 		fragment, error := bucket.LookupIn(doc).Get("inventory").Execute()
 		if error != nil {
-			//fmt.Println(error.Error())
-			//return
+			fmt.Println(error.Error())
 		}
 		var inventory Inventory
 
 		fragment.Content("inventory", &inventory)
 		jsonInventory, error := json.Marshal(&inventory)
 		if error != nil {
-			//fmt.Println(error.Error())
-			//return
+			fmt.Println(error.Error())
 		}
 		fmt.Println(string(jsonInventory))
 
-		_, error = bucket.MutateIn(doc, 0, 0).Upsert("inventory.ip", "1.2.3.4", true).Execute()
+		_, error = bucket.MutateIn(doc, 0, 0).Upsert("ip", "0.0.0.0", true).Execute()
 		if error != nil {
-			//fmt.Println(error.Error())
-			//return
+			fmt.Println(error.Error())
 		}
 
 	default:
