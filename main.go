@@ -17,8 +17,9 @@ import (
 	"github.com/miekg/dns"
 )
 
-// the note structure in the key/value storage
-type inventory struct {
+var bucket *gocb.Bucket
+
+type Inventory struct {
 	IP     string            `json:"ip"`
 	Tag    []string          `json:"tag"`
 	Apps   []string          `json:"apps"`
@@ -26,8 +27,7 @@ type inventory struct {
 	Params map[string]string `json:"params"`
 }
 
-// config file structure
-type conf struct {
+type Conf struct {
 	Server struct {
 		Http struct {
 			Http_port string `yaml:"http_port"`
@@ -49,16 +49,16 @@ type conf struct {
 
 var configFlag = flag.String("config", "./default.yaml", "set config file in the yaml format")
 
-var config conf
+var config Conf
 
-func configure() conf {
+func configure() Conf {
 
 	configFile, err := ioutil.ReadFile(*configFlag)
 	if err != nil {
 		fmt.Println("Failed read configuration file: ", err)
 	}
 
-	var c conf
+	var c Conf
 	err = yaml.Unmarshal(configFile, &c)
 
 	if err != nil {
@@ -68,8 +68,6 @@ func configure() conf {
 	return c
 }
 
-var bucket *gocb.Bucket
-
 func main() {
 
 	flag.Parse()
@@ -78,7 +76,7 @@ func main() {
 
 	conn, err := gocb.Connect(config.Storage.Hosts[0])
 	if err != nil {
-		fmt.Println("Failed connect to ", *conn, err)
+		fmt.Println("Failed connect to host", err)
 	}
 	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
 	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
@@ -118,7 +116,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		name := q.Name
 		fmt.Println(name)
 
-		var host inventory
+		var host Inventory
 
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
@@ -142,50 +140,83 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 func manager(w http.ResponseWriter, r *http.Request) {
 
-	res := r.Method
+	met := r.Method
 
-	switch res {
+	switch met {
 	case "GET":
+		/*
+			doc := r.URL.Path[len("/manager/"):]
+			var res json.RawMessage
+			bucket.Get(doc, &res)
+			val, err := json.Marshal(res)
+			if err != nil {
+				fmt.Fprintf(w, "can't marshal: ", val, err)
+			}
+			fmt.Fprintf(w, "%v\n", string(val))
+		*/
 
-		//var result inventory
+		var document Inventory
 
-		req := r.URL.Path[len("/manager/"):]
-		var res json.RawMessage
-		bucket.Get(req, &res)
-		val, err := json.Marshal(res)
-		if err != nil {
-			fmt.Fprintf(w, "can't marshal: ", val, err)
+		doc := r.URL.Path[len("/manager/"):]
+		_, error := bucket.Get(doc, &document)
+		if error != nil {
+			fmt.Println(error.Error())
+			return
 		}
-		fmt.Fprintf(w, "%v\n", string(val))
+		jsonDocument, error := json.Marshal(&document)
+		if error != nil {
+			fmt.Println(error.Error())
+		}
+		fmt.Fprintf(w, "%v\n", string(jsonDocument))
 
 	case "POST":
 
-		var result inventory
+		var result Inventory
 
-		req := r.URL.Path[len("/manager/"):]
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			fmt.Println("Error: ", err)
+		doc := r.URL.Path[len("/manager/"):]
+		body, error := ioutil.ReadAll(r.Body)
+		if error != nil {
+			fmt.Println(error.Error())
 		}
-		err = json.Unmarshal(body, &result)
-		if err != nil {
-			fmt.Println(w, "can't unmarshal: ", req, err)
+		error = json.Unmarshal(body, &result)
+		if error != nil {
+			fmt.Println(w, "can't unmarshal: ", doc, error)
 		} else {
-			bucket.Upsert(req, result, 0)
+			bucket.Upsert(doc, result, 0)
 		}
 
 	case "DELETE":
 
-		req := r.URL.Path[len("/manager/"):]
-		bucket.Remove(req, 0)
+		doc := r.URL.Path[len("/manager/"):]
+		bucket.Remove(doc, 0)
 
 	//TODO: finish
 	case "UPDATE":
 
-		fmt.Println("this is UPDATE method")
+		doc := r.URL.Path[len("/manager/"):]
+		fragment, error := bucket.LookupIn(doc).Get("inventory").Execute()
+		if error != nil {
+			//fmt.Println(error.Error())
+			//return
+		}
+		var inventory Inventory
+
+		fragment.Content("inventory", &inventory)
+		jsonInventory, error := json.Marshal(&inventory)
+		if error != nil {
+			//fmt.Println(error.Error())
+			//return
+		}
+		fmt.Println(string(jsonInventory))
+
+		_, error = bucket.MutateIn(doc, 0, 0).Upsert("inventory.ip", "1.2.3.4", true).Execute()
+		if error != nil {
+			//fmt.Println(error.Error())
+			//return
+		}
 
 	default:
 
-		fmt.Println("Error: ", "\"", res, "\"", " - unknown method. Using GET, POST, DELETE or UPDATE method.")
+		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE or UPDATE method.")
 	}
 }
