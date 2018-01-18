@@ -147,11 +147,16 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	switch res {
 	case "GET":
 
-		var result inventory
+		//var result inventory
 
 		req := r.URL.Path[len("/manager/"):]
-		bucket.Get(req, &result)
-		fmt.Fprintf(w, "%v\n", result)
+		var res json.RawMessage
+		bucket.Get(req, &res)
+		val, err := json.Marshal(res)
+		if err != nil {
+			fmt.Fprintf(w, "can't marshal: ", val, err)
+		}
+		fmt.Fprintf(w, "%v\n", string(val))
 
 	case "POST":
 
@@ -164,7 +169,7 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		}
 		err = json.Unmarshal(body, &result)
 		if err != nil {
-			fmt.Println("can't unmarshal", req, err)
+			fmt.Println(w, "can't unmarshal: ", req, err)
 		} else {
 			bucket.Upsert(req, result, 0)
 		}
