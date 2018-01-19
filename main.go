@@ -20,7 +20,7 @@ import (
 var bucket *gocb.Bucket
 
 type Inventory struct {
-	IP     string            `json:"ip"`
+	Ip     string            `json:"ip"`
 	Tag    []string          `json:"tag"`
 	Apps   []string          `json:"apps"`
 	Active bool              `json:"active"`
@@ -130,7 +130,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		answer := new(dns.A)
 		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Server.Dns.Ttl}
-		answer.A = net.ParseIP(host.IP)
+		answer.A = net.ParseIP(host.Ip)
 		m.Answer = append(m.Answer, answer)
 	}
 	m.SetReply(r)
@@ -194,26 +194,46 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	case "UPDATE":
 
 		doc := r.URL.Path[len("/manager/"):]
-		fragment, error := bucket.LookupIn(doc).Get("inventory").Execute()
+
+		/*
+
+			fragment, error := bucket.LookupIn(doc).Get("").Execute()
+			if error != nil {
+				fmt.Println(error.Error())
+			}
+
+			var inventory Inventory
+
+			fragment.Content("", &inventory)
+			jsonInventory, error := json.Marshal(&inventory)
+			if error != nil {
+				fmt.Println(error.Error())
+			}
+			fmt.Println(string(jsonInventory))
+		*/
+
+		//TODO
+
+		body, error := ioutil.ReadAll(r.Body)
 		if error != nil {
 			fmt.Println(error.Error())
 		}
-		var inventory Inventory
 
-		fragment.Content("inventory", &inventory)
-		jsonInventory, error := json.Marshal(&inventory)
-		if error != nil {
-			fmt.Println(error.Error())
+		var data map[string]interface{}
+
+		if err := json.Unmarshal(body, &data); err != nil {
+			panic(err)
+		} else {
+			fmt.Fprintf(w, "%v", data)
 		}
-		fmt.Println(string(jsonInventory))
 
-		_, error = bucket.MutateIn(doc, 0, 0).Upsert("ip", "0.0.0.0", true).Execute()
+		_, error = bucket.MutateIn(doc, 0, 0).Upsert("", "", true).Execute()
 		if error != nil {
 			fmt.Println(error.Error())
 		}
 
 	default:
 
-		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE or UPDATE method.")
+		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE, UPDATE method.")
 	}
 }
