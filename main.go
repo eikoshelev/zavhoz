@@ -212,22 +212,17 @@ func manager(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(string(jsonInventory))
 		*/
 
-		//TODO
+		//TODO: закончить!
+		var document Inventory
 
-		body, error := ioutil.ReadAll(r.Body)
+		_, error := bucket.GetAndLock(doc, 000, &document)
 		if error != nil {
 			fmt.Println(error.Error())
 		}
 
-		var data map[string]interface{}
+		// ...
 
-		if err := json.Unmarshal(body, &data); err != nil {
-			panic(err)
-		} else {
-			fmt.Fprintf(w, "%v", data)
-		}
-
-		_, error = bucket.MutateIn(doc, 0, 0).Upsert("", "", true).Execute()
+		_, error = bucket.MutateIn(doc, 0, 0).Replace("", &document).Execute()
 		if error != nil {
 			fmt.Println(error.Error())
 		}
