@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 	"syscall"
 
 	"github.com/couchbase/gocb"
@@ -21,11 +20,11 @@ import (
 var bucket *gocb.Bucket
 
 type Inventory struct {
-	Ip     string            `json:"ip"`
-	Tag    []string          `json:"tag"`
-	Apps   []string          `json:"apps"`
-	Active bool              `json:"active"`
-	Params map[string]string `json:"params"`
+	Ip     string            `json:"ip,omitempty"`
+	Tag    []string          `json:"tag,omitempty"`
+	Apps   []string          `json:"apps,omitempty"`
+	Active bool              `json:"active,omitempty"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 type Conf struct {
@@ -141,6 +140,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 func manager(w http.ResponseWriter, r *http.Request) {
 
+	type Cas gocb.Cas
+
 	met := r.Method
 
 	switch met {
@@ -181,67 +182,31 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		doc := r.URL.Path[len("/manager/"):]
 		bucket.Remove(doc, 0)
 
-	//TODO: finish
+	//TODO: поле params при апдейте не заменяет, а добавляет значения, т.к. ключи не описаны как omitempty. Разобраться (!)
 	case "UPDATE":
 
 		doc := r.URL.Path[len("/manager/"):]
 
 		var document Inventory
-		var req Inventory
 
-		_, error := bucket.GetAndLock(doc, 000, &document)
+		cas, error := bucket.GetAndLock(doc, 000, &document) //TODO: set time lock
 		if error != nil {
-			fmt.Println(error.Error())
+			fmt.Println(error.Error()) //TODO: обработка ошибки
 		}
 		body, error := ioutil.ReadAll(r.Body)
 		if error != nil {
+			fmt.Println(error.Error()) //TODO: обработка ошибки
+		}
+		error = json.Unmarshal(body, &document)
+		if error != nil {
+			fmt.Println(w, "can't unmarshal: ", doc, error) //TODO: обработка ошибки
+		}
+
+		cas, error = bucket.Replace(doc, &document, cas, 0)
+		if error != nil {
 			fmt.Println(error.Error())
 		}
-		error = json.Unmarshal(body, &req)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", doc, error)
-		}
-		for i := 0; i < 5; i++ {
-			val := reflect.ValueOf(&req).Elem().Field(i).Interface()
-			if val == nil {
-				continue
-			} else {
-				key := reflect.TypeOf(&req).Elem().Field(i).Name
-				fmt.Println("Ключ:", key, "\n", "Значение:", val)
-				// ...
-			}
-		}
-
-		/*
-					body, error := ioutil.ReadAll(r.Body)
-					if error != nil {
-						fmt.Println(error.Error())
-					}
-					error = json.Unmarshal(body, &document)
-					if error != nil {
-						fmt.Println(w, "can't unmarshal: ", doc, error)
-					}
-				a := reflect.ValueOf(&document)
-				numfield := reflect.ValueOf(a).Elem().NumField()
-				if a.Kind() != reflect.Ptr {
-					log.Fatal("wrong type struct")
-				}
-				for x := 0; x < numfield; x++ {
-					fmt.Printf("Name field: `%s`  Type: `%s`\n", reflect.TypeOf(&document).Elem().Field(0).Name,
-						reflect.ValueOf(&document).Elem().Field(x).Type())
-				}
-			body, error := ioutil.ReadAll(r.Body)
-			if error != nil {
-				fmt.Println(error.Error())
-			}
-
-			error = json.Unmarshal(body, &req)
-			if error != nil {
-				fmt.Println(w, "can't unmarshal: ", doc, error)
-			}
-			s := reflect.ValueOf(&req)
-			fmt.Println(s.Elem().Field(0).String())
-		*/
+		bucket.Unlock(doc, cas)
 
 	default:
 
