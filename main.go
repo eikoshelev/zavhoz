@@ -85,6 +85,7 @@ func main() {
 	}
 
 	http.HandleFunc("/manager/", manager)
+	http.HandleFunc("/search", search)
 
 	errr := http.ListenAndServe(":"+config.Server.Http.Http_port, nil)
 	if errr != nil {
@@ -199,17 +200,41 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		}
 		error = json.Unmarshal(body, &document)
 		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", doc, error) //TODO: обработка ошибки
+			fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
 		}
 
 		cas, error = bucket.Replace(doc, &document, cas, 0)
 		if error != nil {
-			fmt.Println(error.Error())
+			log.Fatal(error)
+			fmt.Println("Failed Replace document")
 		}
 		bucket.Unlock(doc, cas)
 
 	default:
 
 		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE, UPDATE method.")
+	}
+}
+
+func search(w http.ResponseWriter, r *http.Request) {
+
+	body, error := ioutil.ReadAll(r.Body)
+	if error != nil {
+		fmt.Println(error.Error()) //TODO: обработка ошибки
+	}
+
+	query := gocb.NewN1qlQuery("SELECT * FROM `testbucket`" + "WHERE " + string(body) + " AND tag=['tags']")
+	rows, error := bucket.ExecuteN1qlQuery(query, nil)
+	if error != nil {
+		fmt.Println(error.Error()) //TODO: обработка ошибки
+	}
+
+	var res interface{}
+
+	for rows.Next(&res) {
+		fmt.Printf("Row: %+v\n", res)
+	}
+	if error = rows.Close(); error != nil {
+		fmt.Printf("Couldn't get all the rows: %s\n", error)
 	}
 }
