@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/couchbase/gocb"
+	"github.com/couchbase/gocb/cbft"
 	"github.com/go-yaml/yaml"
 	"github.com/miekg/dns"
 )
@@ -79,13 +80,14 @@ func main() {
 		fmt.Println("Failed connect to host", err)
 	}
 	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
+
 	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
 	if err != nil {
 		fmt.Println("Failed open bucket: ", *bucket, err)
 	}
 
 	http.HandleFunc("/manager/", manager)
-	http.HandleFunc("/search", search)
+	http.HandleFunc("/search/", search)
 
 	errr := http.ListenAndServe(":"+config.Server.Http.Http_port, nil)
 	if errr != nil {
@@ -183,7 +185,6 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		doc := r.URL.Path[len("/manager/"):]
 		bucket.Remove(doc, 0)
 
-	//TODO: поле params при апдейте не заменяет, а добавляет значения, т.к. ключи не описаны как omitempty. Разобраться (!)
 	case "UPDATE":
 
 		doc := r.URL.Path[len("/manager/"):]
@@ -205,7 +206,6 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 		cas, error = bucket.Replace(doc, &document, cas, 0)
 		if error != nil {
-			log.Fatal(error)
 			fmt.Println("Failed Replace document")
 		}
 		bucket.Unlock(doc, cas)
@@ -218,23 +218,103 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 func search(w http.ResponseWriter, r *http.Request) {
 
+	var search Inventory
+
+	type FtsHit struct {
+		ID string `json:"id,omitempty"`
+	}
+
+	//doc := r.URL.Path[len("/search/"):]
+
 	body, error := ioutil.ReadAll(r.Body)
 	if error != nil {
 		fmt.Println(error.Error()) //TODO: обработка ошибки
 	}
 
-	query := gocb.NewN1qlQuery("SELECT * FROM `testbucket`" + "WHERE " + string(body) + " AND tag=['tags']")
-	rows, error := bucket.ExecuteN1qlQuery(query, nil)
+	error = json.Unmarshal(body, &search)
 	if error != nil {
-		fmt.Println(error.Error()) //TODO: обработка ошибки
+		fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
 	}
 
-	var res interface{}
+	//docid := cbft.NewDocIdQuery(doc)
 
-	for rows.Next(&res) {
-		fmt.Printf("Row: %+v\n", res)
+	//TODO: составной запрос
+	qp := cbft.NewConjunctionQuery(
+		cbft.NewPhraseQuery(search.Ip).Field("ip"),
+		cbft.NewPhraseQuery(search.Tag[0]).Field("tag"),
+		cbft.NewPhraseQuery(search.Apps[0]).Field("apps"),
+		cbft.NewBooleanFieldQuery(search.Active).Field("active"),
+		//cbft.NewQueryStringQuery(search.Params).Field("params"),
+	)
+
+	/*
+		if doc != "" && doc != "*" {
+			qp.And(cbft.NewDisjunctionQuery(
+				//...
+			))
+		}
+	*/
+
+	q := gocb.NewSearchQuery("search-index", qp)
+
+	rows, err := bucket.ExecuteSearchQuery(q)
+	if err != nil {
+		fmt.Println(err.Error())
 	}
-	if error = rows.Close(); error != nil {
-		fmt.Printf("Couldn't get all the rows: %s\n", error)
+
+	var result Inventory
+
+	for _, hit := range rows.Hits() {
+		res, _ := bucket.Get(hit.Id, &result)
+		fmt.Printf(hit.Id, ":", res)
 	}
+
+	jsonDocument, error := json.Marshal(&result)
+	if error != nil {
+		fmt.Println(error.Error())
+	}
+	fmt.Fprintf(w, "%v\n", string(jsonDocument))
+
+	/*
+		doc := r.URL.Path[len("/search/"):]
+
+		if doc == "" {
+			doc = "*"
+		}
+
+		var docsearch Inventory
+		var param []interface{}
+
+		body, error := ioutil.ReadAll(r.Body)
+		if error != nil {
+			fmt.Println(error.Error()) //TODO: обработка ошибки
+		}
+
+		error = json.Unmarshal(body, &docsearch)
+		if error != nil {
+			fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
+		}
+
+		query := gocb.NewN1qlQuery("SELECT " + doc + " FROM `testbucket` " + "WHERE ip=$1 AND tag=$2 AND apps=$3 AND active=$4 AND params=$5")
+
+		param = append(param, docsearch.Ip)
+		param = append(param, docsearch.Tag)
+		param = append(param, docsearch.Apps)
+		param = append(param, docsearch.Active)
+		param = append(param, docsearch.Params)
+
+		rows, error := bucket.ExecuteN1qlQuery(query, param)
+		if error != nil {
+			fmt.Println(error.Error()) //TODO: обработка ошибки
+		}
+
+		var res interface{}
+
+		for rows.Next(&res) {
+			fmt.Printf("Row: %+v\n", res)
+		}
+		if error = rows.Close(); error != nil {
+			fmt.Printf("Couldn't get all the rows: %s\n", error)
+		}
+	*/
 }
