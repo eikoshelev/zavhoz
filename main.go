@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"log/syslog"
 	"net"
 	"net/http"
 	"os"
@@ -16,7 +16,11 @@ import (
 	"github.com/couchbase/gocb/cbft"
 	"github.com/go-yaml/yaml"
 	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
+	logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
 )
+
+var log = logrus.New()
 
 var bucket *gocb.Bucket
 
@@ -314,4 +318,19 @@ func search(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Couldn't get all the rows: %s\n", error)
 		}
 	*/
+}
+
+//TODO: finish logger func
+func logger() {
+
+	log.Formatter = new(logrus.TextFormatter)
+	hook, err := logrus_syslog.NewSyslogHook(config.Server.Log.Network_type, config.Server.Log.Log_host+":"+config.Server.Log.Log_port, syslog.LOG_INFO, "")
+	if err != nil {
+		log.Errorln(err)
+		hook, err = logrus_syslog.NewSyslogHook(config.Server.Log.Network_type, config.Server.Log.Log_host+":"+config.Server.Log.Log_port, syslog.LOG_INFO, "")
+	} else {
+		log.Hooks.Add(hook)
+	}
+
+	log.Out = ioutil.Discard
 }
