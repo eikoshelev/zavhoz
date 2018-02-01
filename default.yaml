@@ -11,3 +11,9 @@ storage:
   bucket: testbucket
   hosts:
     - 127.0.0.1:8091
+log:
+    network_type: udp
+    host:
+    port: 514
+    file path: "./"
+    file name: dns_cb.log

@@ -238,7 +238,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	//docid := cbft.NewDocIdQuery(doc)
 
-	//TODO: составной запрос
+	//TODO: составной запрос (работает только в случае указания значений для всех полей)
 	qp := cbft.NewConjunctionQuery(
 		cbft.NewPhraseQuery(search.Ip).Field("ip"),
 		cbft.NewPhraseQuery(search.Tag[0]).Field("tag"),
