@@ -40,8 +40,8 @@ type Conf struct {
 		} `yaml:"dns"`
 		Log struct {
 			Network_type string `yaml:"network_type"`
-			Host         string `yaml:"host"`
-			Port         string `yaml:"port"`
+			Log_host     string `yaml:"log_host"`
+			Log_port     string `yaml:"log_port"`
 			File_path    string `yaml:"file_path"`
 			File_name    string `yaml:"file_name"`
 		} `yaml:"log"`
@@ -249,7 +249,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 		cbft.NewPhraseQuery(search.Tag[0]).Field("tag"),
 		cbft.NewPhraseQuery(search.Apps[0]).Field("apps"),
 		cbft.NewBooleanFieldQuery(search.Active).Field("active"),
-		cbft.NewQueryStringQuery(search.Params).Field("params"),
+		//cbft.NewQueryStringQuery(search.Params).Field("params"),
 	)
 
 	q := gocb.NewSearchQuery("search-index", qp)
