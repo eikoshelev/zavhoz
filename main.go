@@ -38,6 +38,13 @@ type Conf struct {
 			Network  string `yaml:"network"`
 			Ttl      uint32 `yaml:"ttl"`
 		} `yaml:"dns"`
+		Log struct {
+			Network_type string `yaml:"network_type"`
+			Host         string `yaml:"host"`
+			Port         string `yaml:"port"`
+			File_path    string `yaml:"file_path"`
+			File_name    string `yaml:"file_name"`
+		} `yaml:"log"`
 	} `yaml:"server"`
 
 	Storage struct {
@@ -224,8 +231,6 @@ func search(w http.ResponseWriter, r *http.Request) {
 		ID string `json:"id,omitempty"`
 	}
 
-	//doc := r.URL.Path[len("/search/"):]
-
 	body, error := ioutil.ReadAll(r.Body)
 	if error != nil {
 		fmt.Println(error.Error()) //TODO: обработка ошибки
@@ -244,16 +249,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 		cbft.NewPhraseQuery(search.Tag[0]).Field("tag"),
 		cbft.NewPhraseQuery(search.Apps[0]).Field("apps"),
 		cbft.NewBooleanFieldQuery(search.Active).Field("active"),
-		//cbft.NewQueryStringQuery(search.Params).Field("params"),
+		cbft.NewQueryStringQuery(search.Params).Field("params"),
 	)
-
-	/*
-		if doc != "" && doc != "*" {
-			qp.And(cbft.NewDisjunctionQuery(
-				//...
-			))
-		}
-	*/
 
 	q := gocb.NewSearchQuery("search-index", qp)
 
