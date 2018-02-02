@@ -276,7 +276,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// qa... разпаковываем слайс
+		// разпаковываем слайс
 		qp := cbft.NewConjunctionQuery(res...)
 
 		q := gocb.NewSearchQuery("search-index", qp)
