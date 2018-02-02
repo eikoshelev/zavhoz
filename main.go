@@ -229,14 +229,17 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 func search(w http.ResponseWriter, r *http.Request) {
 
-	var ans Inventory
+	var answer []Inventory
 
 	body, error := ioutil.ReadAll(r.Body)
 	if error != nil {
-		fmt.Println(error.Error()) //TODO: обработка ошибки
+		fmt.Println(error.Error()) //TODO: обработка ошибки !!!
 	}
 
-	for _, j := range [][]byte{body} {
+	foo := make(map[string]interface{})
+	err := json.Unmarshal(body, &foo)
+
+	for _, j := range [][]byte{body} { //TODO: убрать хлам
 
 		search := make(map[string]interface{})
 
@@ -246,7 +249,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// временный слайс для хранения запросов
+		// слайс для хранения запроса
 		res := []cbft.FtsQuery{}
 
 		for key, val := range search {
@@ -269,36 +272,35 @@ func search(w http.ResponseWriter, r *http.Request) {
 			case map[string]interface{}: // Params
 				for _, item := range valt {
 					if s, ok := item.(string); ok {
-						// NewQueryStringQuery(search.Params).Field("params") не работает
 						res = append(res, cbft.NewPhraseQuery(s).Field(key))
 					}
 				}
 			}
 		}
 
-		// разпаковываем слайс
-		qp := cbft.NewConjunctionQuery(res...)
+		// распаковываем слайс
+		query := cbft.NewConjunctionQuery(res...)
 
-		q := gocb.NewSearchQuery("search-index", qp)
-		fmt.Println(q)
+		req := gocb.NewSearchQuery("search-index", query)
 
 		// отправляем запрос
-		rows, err := bucket.ExecuteSearchQuery(q)
-		fmt.Println(rows)
+		rows, err := bucket.ExecuteSearchQuery(req)
 
 		for _, hit := range rows.Hits() {
+			var ans Inventory
 			_, err := bucket.Get(hit.Id, &ans)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
+			answer = append(answer, ans)
 
-			jsonDocument, err := json.Marshal(&ans)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			fmt.Fprintf(w, "%v\n", string(jsonDocument))
 		}
 	}
+	jsonDocument, err := json.Marshal(&answer)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Fprintf(w, "%v\n", string(jsonDocument))
 }
 
 //TODO: finish logger func
