@@ -229,95 +229,76 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 func search(w http.ResponseWriter, r *http.Request) {
 
-	var search Inventory
-
-	type FtsHit struct {
-		ID string `json:"id,omitempty"`
-	}
+	var ans Inventory
 
 	body, error := ioutil.ReadAll(r.Body)
 	if error != nil {
 		fmt.Println(error.Error()) //TODO: обработка ошибки
 	}
 
-	error = json.Unmarshal(body, &search)
-	if error != nil {
-		fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
+	for _, j := range [][]byte{body} {
+
+		search := make(map[string]interface{})
+
+		err := json.Unmarshal(j, &search)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		// временный слайс для хранения запросов
+		res := []cbft.FtsQuery{}
+
+		for key, val := range search {
+
+			switch valt := val.(type) {
+
+			case string: // IP
+				res = append(res, cbft.NewPhraseQuery(valt).Field(key))
+
+			case []interface{}: // Tag and/or Apps
+				for _, item := range valt {
+					if s, ok := item.(string); ok {
+						res = append(res, cbft.NewPhraseQuery(s).Field(key))
+					}
+				}
+
+			case bool: // Active (!)
+				res = append(res, cbft.NewBooleanFieldQuery(valt).Field(key))
+
+			case map[string]interface{}: // Params
+				for _, item := range valt {
+					if s, ok := item.(string); ok {
+						// NewQueryStringQuery(search.Params).Field("params") не работает
+						res = append(res, cbft.NewPhraseQuery(s).Field(key))
+					}
+				}
+			}
+		}
+
+		// qa... разпаковываем слайс
+		qp := cbft.NewConjunctionQuery(res...)
+
+		q := gocb.NewSearchQuery("search-index", qp)
+		fmt.Println(q)
+
+		// отправляем запрос
+		rows, err := bucket.ExecuteSearchQuery(q)
+		fmt.Println(rows)
+
+		for _, hit := range rows.Hits() {
+			_, err := bucket.Get(hit.Id, &ans)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			jsonDocument, err := json.Marshal(&ans)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			fmt.Fprintf(w, "%v\n", string(jsonDocument))
+		}
 	}
-
-	//docid := cbft.NewDocIdQuery(doc)
-
-	//TODO: составной запрос (работает только в случае указания значений для всех полей)
-	qp := cbft.NewConjunctionQuery(
-		cbft.NewPhraseQuery(search.Ip).Field("ip"),
-		cbft.NewPhraseQuery(search.Tag[0]).Field("tag"),
-		cbft.NewPhraseQuery(search.Apps[0]).Field("apps"),
-		cbft.NewBooleanFieldQuery(search.Active).Field("active"),
-		//cbft.NewQueryStringQuery(search.Params).Field("params"),
-	)
-
-	q := gocb.NewSearchQuery("search-index", qp)
-
-	rows, err := bucket.ExecuteSearchQuery(q)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	var result Inventory
-
-	for _, hit := range rows.Hits() {
-		res, _ := bucket.Get(hit.Id, &result)
-		fmt.Printf(hit.Id, ":", res)
-	}
-
-	jsonDocument, error := json.Marshal(&result)
-	if error != nil {
-		fmt.Println(error.Error())
-	}
-	fmt.Fprintf(w, "%v\n", string(jsonDocument))
-
-	/*
-		doc := r.URL.Path[len("/search/"):]
-
-		if doc == "" {
-			doc = "*"
-		}
-
-		var docsearch Inventory
-		var param []interface{}
-
-		body, error := ioutil.ReadAll(r.Body)
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
-		}
-
-		error = json.Unmarshal(body, &docsearch)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
-		}
-
-		query := gocb.NewN1qlQuery("SELECT " + doc + " FROM `testbucket` " + "WHERE ip=$1 AND tag=$2 AND apps=$3 AND active=$4 AND params=$5")
-
-		param = append(param, docsearch.Ip)
-		param = append(param, docsearch.Tag)
-		param = append(param, docsearch.Apps)
-		param = append(param, docsearch.Active)
-		param = append(param, docsearch.Params)
-
-		rows, error := bucket.ExecuteN1qlQuery(query, param)
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
-		}
-
-		var res interface{}
-
-		for rows.Next(&res) {
-			fmt.Printf("Row: %+v\n", res)
-		}
-		if error = rows.Close(); error != nil {
-			fmt.Printf("Couldn't get all the rows: %s\n", error)
-		}
-	*/
 }
 
 //TODO: finish logger func
