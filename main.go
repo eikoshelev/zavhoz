@@ -202,7 +202,7 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 		var document Inventory
 
-		cas, error := bucket.GetAndLock(doc, 000, &document) //TODO: set time lock
+		cas, error := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
 		if error != nil {
 			fmt.Println(error.Error()) //TODO: обработка ошибки
 		}
@@ -236,66 +236,75 @@ func search(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(error.Error()) //TODO: обработка ошибки !!!
 	}
 
-	foo := make(map[string]interface{})
-	err := json.Unmarshal(body, &foo)
+	search := make(map[string]interface{})
 
-	for _, j := range [][]byte{body} { //TODO: убрать хлам
+	err := json.Unmarshal(body, &search)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
-		search := make(map[string]interface{})
+	// слайс для хранения запроса
+	res := []cbft.FtsQuery{}
 
-		err := json.Unmarshal(j, &search)
-		if err != nil {
-			log.Println(err)
-			return
-		}
+	// получаем имя дока
+	doc := r.URL.Path[len("/search/"):]
 
-		// слайс для хранения запроса
-		res := []cbft.FtsQuery{}
+	// если имя дока было указано - добавляем в запрос
+	if doc != "" {
+		res = append(res, cbft.NewDocIdQuery(doc))
+	}
 
-		for key, val := range search {
+	for key, val := range search {
+		fmt.Println("Key:", key, "Val:", val)
 
-			switch valt := val.(type) {
+		switch valt := val.(type) {
 
-			case string: // IP
-				res = append(res, cbft.NewPhraseQuery(valt).Field(key))
+		case string: // IP
+			res = append(res, cbft.NewPhraseQuery(valt).Field(key))
 
-			case []interface{}: // Tag and/or Apps
-				for _, item := range valt {
-					if s, ok := item.(string); ok {
-						res = append(res, cbft.NewPhraseQuery(s).Field(key))
-					}
-				}
-
-			case bool: // Active (!)
-				res = append(res, cbft.NewBooleanFieldQuery(valt).Field(key))
-
-			case map[string]interface{}: // Params
-				for _, item := range valt {
-					if s, ok := item.(string); ok {
-						res = append(res, cbft.NewPhraseQuery(s).Field(key))
-					}
+		case []interface{}: // Tag and/or Apps
+			for _, item := range valt {
+				if s, ok := item.(string); ok {
+					res = append(res, cbft.NewPhraseQuery(s).Field(key))
 				}
 			}
-		}
 
-		// распаковываем слайс
-		query := cbft.NewConjunctionQuery(res...)
+		case bool: // Active (!)
+			res = append(res, cbft.NewBooleanFieldQuery(valt).Field(key))
 
-		req := gocb.NewSearchQuery("search-index", query)
-
-		// отправляем запрос
-		rows, err := bucket.ExecuteSearchQuery(req)
-
-		for _, hit := range rows.Hits() {
-			var ans Inventory
-			_, err := bucket.Get(hit.Id, &ans)
-			if err != nil {
-				fmt.Println(err.Error())
+		case map[string]interface{}: // Params
+			for _, item := range valt {
+				if s, ok := item.(string); ok {
+					res = append(res, cbft.NewPhraseQuery(s).Field(key))
+				}
 			}
-			answer = append(answer, ans)
-
 		}
 	}
+
+	// распаковываем слайс
+	query := cbft.NewConjunctionQuery(res...)
+	fmt.Println("Query:", query)
+
+	req := gocb.NewSearchQuery("search-index", query)
+	fmt.Println("Req:", req)
+
+	// отправляем запрос
+	rows, err := bucket.ExecuteSearchQuery(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	for _, hit := range rows.Hits() {
+		var ans Inventory
+		_, err := bucket.Get(hit.Id, &ans)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		answer = append(answer, ans)
+
+	}
+
 	jsonDocument, err := json.Marshal(&answer)
 	if err != nil {
 		fmt.Println(err.Error())
