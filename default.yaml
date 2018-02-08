@@ -5,12 +5,12 @@ server:
     dns_port: 53
     network: udp
     ttl: 3600
-  log:
-    network_type: udp
-    log_host:
-    log_port:
-    file_path: "./"
-    file_name: dns_cb.log
+log:
+  network_type: udp
+  log_host:
+  log_port:
+  file_path: "./"
+  file_name: dns_cb.log
 storage:
   login: Admin
   password: aadmin

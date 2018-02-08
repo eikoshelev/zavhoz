@@ -38,14 +38,15 @@ type Conf struct {
 			Network  string `yaml:"network"`
 			Ttl      uint32 `yaml:"ttl"`
 		} `yaml:"dns"`
-		Log struct {
-			Network_type string `yaml:"network_type"`
-			Log_host     string `yaml:"log_host"`
-			Log_port     string `yaml:"log_port"`
-			File_path    string `yaml:"file_path"`
-			File_name    string `yaml:"file_name"`
-		} `yaml:"log"`
 	} `yaml:"server"`
+
+	Log struct {
+		Network_type string `yaml:"network_type"`
+		Log_host     string `yaml:"log_host"`
+		Log_port     string `yaml:"log_port"`
+		File_path    string `yaml:"file_path"`
+		File_name    string `yaml:"file_name"`
+	} `yaml:"log"`
 
 	Storage struct {
 		Login    string   `yaml:"login"`
