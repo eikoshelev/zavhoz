@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log/syslog"
 	"net"
 	"net/http"
 	"os"
@@ -13,11 +11,9 @@ import (
 	"syscall"
 
 	"github.com/couchbase/gocb"
-	"github.com/couchbase/gocb/cbft"
 	"github.com/go-yaml/yaml"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
-	logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
 )
 
 var log = logrus.New()
@@ -150,179 +146,4 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	fmt.Printf("%+v\n", m)
 	w.WriteMsg(m)
-}
-
-func manager(w http.ResponseWriter, r *http.Request) {
-
-	type Cas gocb.Cas
-
-	met := r.Method
-
-	switch met {
-	case "GET":
-
-		var document Inventory
-
-		doc := r.URL.Path[len("/manager/"):]
-		_, error := bucket.Get(doc, &document)
-		if error != nil {
-			fmt.Println(error.Error())
-			return
-		}
-		jsonDocument, error := json.Marshal(&document)
-		if error != nil {
-			fmt.Println(error.Error())
-		}
-		fmt.Fprintf(w, "%v\n", string(jsonDocument))
-
-	case "POST":
-
-		var result Inventory
-
-		doc := r.URL.Path[len("/manager/"):]
-		body, error := ioutil.ReadAll(r.Body)
-		if error != nil {
-			fmt.Println(error.Error())
-		}
-		error = json.Unmarshal(body, &result)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", doc, error)
-		} else {
-			bucket.Upsert(doc, result, 0)
-		}
-
-	case "DELETE":
-
-		doc := r.URL.Path[len("/manager/"):]
-		bucket.Remove(doc, 0)
-
-	case "UPDATE":
-
-		doc := r.URL.Path[len("/manager/"):]
-
-		var document Inventory
-
-		cas, error := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
-		}
-		body, error := ioutil.ReadAll(r.Body)
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
-		}
-		error = json.Unmarshal(body, &document)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
-		}
-
-		cas, error = bucket.Replace(doc, &document, cas, 0)
-		if error != nil {
-			fmt.Println("Failed Replace document")
-		}
-		bucket.Unlock(doc, cas)
-
-	default:
-
-		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE, UPDATE method.")
-	}
-}
-
-func search(w http.ResponseWriter, r *http.Request) {
-
-	var answer []Inventory
-
-	body, error := ioutil.ReadAll(r.Body)
-	if error != nil {
-		fmt.Println(error.Error()) //TODO: обработка ошибки !!!
-	}
-
-	search := make(map[string]interface{})
-
-	err := json.Unmarshal(body, &search)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// слайс для хранения запроса
-	res := []cbft.FtsQuery{}
-
-	// получаем имя дока
-	doc := r.URL.Path[len("/search/"):]
-
-	// если имя дока было указано - добавляем в запрос
-	if doc != "" {
-		res = append(res, cbft.NewDocIdQuery(doc))
-	}
-
-	for key, val := range search {
-		fmt.Println("Key:", key, "Val:", val)
-
-		switch valt := val.(type) {
-
-		case string: // IP
-			res = append(res, cbft.NewPhraseQuery(valt).Field(key))
-
-		case []interface{}: // Tag and/or Apps
-			for _, item := range valt {
-				if s, ok := item.(string); ok {
-					res = append(res, cbft.NewPhraseQuery(s).Field(key))
-				}
-			}
-
-		case bool: // Active (!)
-			res = append(res, cbft.NewBooleanFieldQuery(valt).Field(key))
-
-		case map[string]interface{}: // Params
-			for _, item := range valt {
-				if s, ok := item.(string); ok {
-					res = append(res, cbft.NewPhraseQuery(s).Field(key))
-				}
-			}
-		}
-	}
-
-	// распаковываем слайс
-	query := cbft.NewConjunctionQuery(res...)
-	fmt.Println("Query:", query)
-
-	req := gocb.NewSearchQuery("search-index", query)
-	fmt.Println("Req:", req)
-
-	// отправляем запрос
-	rows, err := bucket.ExecuteSearchQuery(req)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	for _, hit := range rows.Hits() {
-		var ans Inventory
-		_, err := bucket.Get(hit.Id, &ans)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		answer = append(answer, ans)
-
-	}
-
-	jsonDocument, err := json.Marshal(&answer)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	fmt.Fprintf(w, "%v\n", string(jsonDocument))
-}
-
-//TODO: finish logger func
-func logger() {
-
-	log.Formatter = new(logrus.TextFormatter)
-	hook, err := logrus_syslog.NewSyslogHook(config.Server.Log.Network_type, config.Server.Log.Log_host+":"+config.Server.Log.Log_port, syslog.LOG_INFO, "")
-	if err != nil {
-		log.Errorln(err)
-		hook, err = logrus_syslog.NewSyslogHook(config.Server.Log.Network_type, config.Server.Log.Log_host+":"+config.Server.Log.Log_port, syslog.LOG_INFO, "")
-	} else {
-		log.Hooks.Add(hook)
-	}
-
-	log.Out = ioutil.Discard
 }
