@@ -1,6 +1,6 @@
 Couchbase REST API
 =
-(проект не закончен)
+(проект не закончен | project not finish)
 ***
 **Manager** - манипулирование документами.
 
