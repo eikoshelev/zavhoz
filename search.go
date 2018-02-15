@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/couchbase/gocb"
@@ -67,10 +68,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	// распаковываем слайс
 	query := cbft.NewConjunctionQuery(res...)
-	fmt.Println("Query:", query)
 
 	req := gocb.NewSearchQuery("search-index", query)
-	fmt.Println("Req:", req)
 
 	// отправляем запрос
 	rows, err := bucket.ExecuteSearchQuery(req)

@@ -9,6 +9,7 @@ import (
 )
 
 type Conf struct {
+	Title  string `yaml:"title"`
 	Server struct {
 		Http struct {
 			Http_port string `yaml:"http_port"`
@@ -24,6 +25,10 @@ type Conf struct {
 		Network_type string `yaml:"network_type"`
 		Log_host     string `yaml:"log_host"`
 		Log_port     string `yaml:"log_port"`
+		Log_type     string `yaml:"log_type"`
+		Debug_mode   bool   `yaml:"debug_mode"`
+		Severity     string `yaml:"severity"`
+		Facility     string `yaml:facility`
 		File_path    string `yaml:"file_path"`
 		File_name    string `yaml:"file_name"`
 	} `yaml:"log"`

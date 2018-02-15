@@ -51,7 +51,10 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 
 		doc := r.URL.Path[len("/manager/"):]
-		bucket.Remove(doc, 0)
+		_, error := bucket.Remove(doc, 0)
+		if error != nil {
+			fmt.Println(error)
+		}
 
 	case "UPDATE":
 

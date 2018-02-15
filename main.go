@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -11,10 +12,7 @@ import (
 
 	"github.com/couchbase/gocb"
 	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 var bucket *gocb.Bucket
 

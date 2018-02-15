@@ -1,3 +1,4 @@
+title: blyashechka
 server:
   http:
     http_port: 8059
@@ -9,6 +10,10 @@ log:
   network_type: udp
   log_host:
   log_port:
+  log_type:
+  debug_mode: false
+  severity: LOG_DEBUG
+  facility: LOG_LOCAL4
   file_path: "./"
   file_name: dns_cb.log
 storage:
