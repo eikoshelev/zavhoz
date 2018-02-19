@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io/ioutil"
 	"log/syslog"
 	"os"
@@ -11,27 +10,34 @@ import (
 )
 
 //глобальный логер
-var Log *log.Logger
+var logger *log.Logger
+
+func GetLogger() *log.Logger {
+	logger = initLogger()
+	return logger
+}
 
 //логер с параметрами из конфига
-func initLogger() (*log.Logger, error) {
+func initLogger() *log.Logger {
 	logger := log.New()
-	switch config.Log.Log_type {
+	switch config.Log.Type {
 	case "syslog":
 		logger = initSyslogger()
 	case "stderr":
 		logger.Out = os.Stderr
+		return logger
 	case "stdout":
 		logger.Out = os.Stdout
+		return logger
 	default:
-		return nil, errors.New("Not correct out type for log")
+		//...
 	}
 	if config.Log.Debug_mode {
 		logger.Out = os.Stdout
 	}
 	logger.Formatter = &log.TextFormatter{}
 	logger.Level = logLevel[config.Log.Severity]
-	return logger, nil
+	return logger
 }
 
 var logLevel = map[string]log.Level{
@@ -82,8 +88,8 @@ func initSyslogger() *log.Logger {
 	}
 	logger := log.New()
 	hook, err := logrus_syslog.NewSyslogHook(
-		config.Log.Network_type,
-		config.Log.Log_host+":"+config.Log.Log_port,
+		config.Log.Type,
+		config.Log.Host+":"+config.Log.Port,
 		LogSeverity[config.Log.Severity]|LogFacility[config.Log.Facility],
 		config.Title)
 	if err != nil {

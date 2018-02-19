@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -26,34 +25,38 @@ type Inventory struct {
 
 func main() {
 
-	flag.Parse()
+	Logger := GetLogger()
+
 	config = configure()
-	fmt.Printf("Configuration:%+v\n", config)
+
+	Logger.Infof("Starting...\n", config)
+
+	flag.Parse()
 
 	conn, err := gocb.Connect(config.Storage.Hosts[0])
 	if err != nil {
-		fmt.Println("Failed connect to host", err)
+		Logger.Error("Failed connect to host", config.Storage.Hosts[0], err)
 	}
 	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
 
 	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
 	if err != nil {
-		fmt.Println("Failed open bucket: ", *bucket, err)
+		Logger.Error("Failed open bucket: ", config.Storage.Bucket, err)
 	}
 
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
 
-	errr := http.ListenAndServe(":"+config.Server.Http.Http_port, nil)
+	errr := http.ListenAndServe(":"+config.Server.Http.Port, nil)
 	if errr != nil {
-		log.Fatal("ListenAndServe: ", err)
+		Logger.Fatal("ListenAndServe: ", err)
 	}
 
-	server := &dns.Server{Addr: ":" + config.Server.Dns.Dns_port, Net: config.Server.Dns.Network}
+	server := &dns.Server{Addr: ":" + config.Server.Dns.Port, Net: config.Server.Dns.Network}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			log.Fatalf("Failed to set udp listener %s\n", err.Error())
+			Logger.Fatalf("Failed to set udp listener %s\n", err)
 		}
 	}()
 
@@ -62,10 +65,12 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	log.Fatalf("Signal (%v) received, stopping\n", s)
+	Logger.Fatalf("Signal (%v) received, stopping\n", s)
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
+
+	defer w.Close()
 
 	m := new(dns.Msg)
 	fmt.Println("handleRequest:inbound message:")

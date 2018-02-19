@@ -1,21 +1,21 @@
-title: blyashechka
+title: uhblya
 server:
   http:
-    http_port: 8059
+    port: 8059
   dns:
-    dns_port: 53
-    network: udp
+    port: 53
+    network: udp        # string [udp|tcp]
     ttl: 3600
 log:
-  network_type: udp
-  log_host:
-  log_port:
-  log_type:
-  debug_mode: false
-  severity: LOG_DEBUG
-  facility: LOG_LOCAL4
-  file_path: "./"
-  file_name: dns_cb.log
+  network:              # string [udp|tcp]
+  host:
+  port: 514
+  type: stderr          # string [syslog|file]
+  debug_mode: false     # bool
+  severity: LOG_INFO
+  facility: LOG_LOCAL3
+  file_path:
+  file_name:
 storage:
   login: Admin
   password: aadmin
