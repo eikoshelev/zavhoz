@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
 
 	"github.com/couchbase/gocb"
 	"github.com/couchbase/gocb/cbft"
@@ -15,17 +15,22 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	var answer []Inventory
 
-	body, error := ioutil.ReadAll(r.Body)
-	if error != nil {
-		fmt.Println(error.Error()) //TODO: обработка ошибки !!!
+	Logger, err := initLogger()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		Logger.Errorf("SEARCH: Incorrect body request: %v", err) //TODO: обработка ошибки !!!
 	}
 
 	search := make(map[string]interface{})
 
-	err := json.Unmarshal(body, &search)
+	err = json.Unmarshal(body, &search)
 	if err != nil {
-		log.Println(err)
-		return
+		Logger.Errorf("SEARCH: Can`t unmarshal: %v", err)
 	}
 
 	// слайс для хранения запроса
@@ -40,7 +45,6 @@ func search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for key, val := range search {
-		fmt.Println("Key:", key, "Val:", val)
 
 		switch valt := val.(type) {
 
@@ -74,14 +78,16 @@ func search(w http.ResponseWriter, r *http.Request) {
 	// отправляем запрос
 	rows, err := bucket.ExecuteSearchQuery(req)
 	if err != nil {
-		fmt.Println(err.Error())
+		Logger.Errorf("SEARCH: Failed to send request: %v", err)
 	}
-
+	// получаем все подходящие документы по их id
 	for _, hit := range rows.Hits() {
+
 		var ans Inventory
+
 		_, err := bucket.Get(hit.Id, &ans)
 		if err != nil {
-			fmt.Println(err.Error())
+			Logger.Errorf("SEARCH: Failed to get note: %v", err)
 		}
 		answer = append(answer, ans)
 
@@ -89,7 +95,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	jsonDocument, err := json.Marshal(&answer)
 	if err != nil {
-		fmt.Println(err.Error())
+		Logger.Errorf("SEARCH: Can`t marshal: %v", err)
 	}
 	fmt.Fprintf(w, "%v\n", string(jsonDocument))
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
 	"log/syslog"
 	"os"
@@ -9,35 +10,31 @@ import (
 	logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
 )
 
-//глобальный логер
-var logger *log.Logger
+// глобальный логер
+var Logger *log.Logger
 
-func GetLogger() *log.Logger {
-	logger = initLogger()
-	return logger
-}
+// тип (вывод) логера берем из конфига
+func initLogger() (*log.Logger, error) {
 
-//логер с параметрами из конфига
-func initLogger() *log.Logger {
 	logger := log.New()
-	switch config.Log.Type {
+
+	switch Config.Log.Type {
 	case "syslog":
 		logger = initSyslogger()
 	case "stderr":
 		logger.Out = os.Stderr
-		return logger
 	case "stdout":
 		logger.Out = os.Stdout
-		return logger
 	default:
-		//...
+		return nil, errors.New("Incorrect out type for log!")
 	}
-	if config.Log.Debug_mode {
+	if Config.Log.Debug_mode {
 		logger.Out = os.Stdout
 	}
+
 	logger.Formatter = &log.TextFormatter{}
-	logger.Level = logLevel[config.Log.Severity]
-	return logger
+	logger.Level = logLevel[Config.Log.Severity]
+	return logger, nil
 }
 
 var logLevel = map[string]log.Level{
@@ -51,7 +48,7 @@ var logLevel = map[string]log.Level{
 	"LOG_DEBUG":   log.DebugLevel,
 }
 
-//SysLog
+// SysLog
 func initSyslogger() *log.Logger {
 	var LogSeverity = map[string]syslog.Priority{
 		"LOG_EMERG":   syslog.LOG_EMERG,
@@ -88,15 +85,15 @@ func initSyslogger() *log.Logger {
 	}
 	logger := log.New()
 	hook, err := logrus_syslog.NewSyslogHook(
-		config.Log.Type,
-		config.Log.Host+":"+config.Log.Port,
-		LogSeverity[config.Log.Severity]|LogFacility[config.Log.Facility],
-		config.Title)
+		Config.Log.Type,
+		Config.Log.Host+":"+Config.Log.Port,
+		LogSeverity[Config.Log.Severity]|LogFacility[Config.Log.Facility],
+		Config.Title)
 	if err != nil {
 		log.Errorln(err)
 		hook, _ = logrus_syslog.NewSyslogHook(
-			"", "", LogSeverity[config.Log.Severity]|LogFacility[config.Log.Facility],
-			config.Title)
+			"", "", LogSeverity[Config.Log.Severity]|LogFacility[Config.Log.Facility],
+			Config.Title)
 	}
 	logger.Hooks.Add(hook)
 

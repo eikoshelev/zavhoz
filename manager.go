@@ -5,30 +5,35 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/couchbase/gocb"
 )
 
 func manager(w http.ResponseWriter, r *http.Request) {
 
+	Logger, err := initLogger()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	type Cas gocb.Cas
 
-	met := r.Method
-
-	switch met {
+	switch r.Method {
 	case "GET":
 
 		var document Inventory
 
 		doc := r.URL.Path[len("/manager/"):]
-		_, error := bucket.Get(doc, &document)
-		if error != nil {
-			fmt.Println(error.Error())
+		_, err := bucket.Get(doc, &document)
+		if err != nil {
+			Logger.Errorf("GET: Failed getting: %s", err)
 			return
 		}
-		jsonDocument, error := json.Marshal(&document)
-		if error != nil {
-			fmt.Println(error.Error())
+		jsonDocument, err := json.Marshal(&document)
+		if err != nil {
+			Logger.Errorf("GET: Can`t marshal: %v", err)
 		}
 		fmt.Fprintf(w, "%v\n", string(jsonDocument))
 
@@ -37,13 +42,13 @@ func manager(w http.ResponseWriter, r *http.Request) {
 		var result Inventory
 
 		doc := r.URL.Path[len("/manager/"):]
-		body, error := ioutil.ReadAll(r.Body)
-		if error != nil {
-			fmt.Println(error.Error())
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			Logger.Fatalf("Incorrect body request: %v", err)
 		}
-		error = json.Unmarshal(body, &result)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", doc, error)
+		err = json.Unmarshal(body, &result)
+		if err != nil {
+			Logger.Errorf("POST: Can't unmarshal: %v", err)
 		} else {
 			bucket.Upsert(doc, result, 0)
 		}
@@ -51,9 +56,9 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 
 		doc := r.URL.Path[len("/manager/"):]
-		_, error := bucket.Remove(doc, 0)
-		if error != nil {
-			fmt.Println(error)
+		_, err := bucket.Remove(doc, 0)
+		if err != nil {
+			Logger.Errorf("DELETE: Deleting failed: %v", err)
 		}
 
 	case "UPDATE":
@@ -62,27 +67,28 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 		var document Inventory
 
-		cas, error := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
+		cas, err := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
+		if err != nil {
+			Logger.Errorf("UPDATE: Failed getting and locking: %v", err) //TODO: обработка ошибки
 		}
-		body, error := ioutil.ReadAll(r.Body)
-		if error != nil {
-			fmt.Println(error.Error()) //TODO: обработка ошибки
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			Logger.Errorf("UPDATE: Incorrect body request: %v", err) //TODO: обработка ошибки
 		}
-		error = json.Unmarshal(body, &document)
-		if error != nil {
-			fmt.Println(w, "can't unmarshal: ", error.Error()) //TODO: обработка ошибки
+		err = json.Unmarshal(body, &document)
+		if err != nil {
+			Logger.Errorf("UPDATE: Can't unmarshal: %v", err) //TODO: обработка ошибки
 		}
 
-		cas, error = bucket.Replace(doc, &document, cas, 0)
-		if error != nil {
-			fmt.Println("Failed Replace document")
+		cas, err = bucket.Replace(doc, &document, cas, 0)
+		if err != nil {
+			Logger.Errorf("UPDATE: Failed replace document: %v", err)
 		}
 		bucket.Unlock(doc, cas)
 
 	default:
 
-		fmt.Println("Error: ", "\"", met, "\"", " - unknown method. Using GET, POST, DELETE, UPDATE method.")
+		Logger.Fatalf("DEFAULT MANAGER: Incorrect method!")
+		fmt.Println("Error: ", "\"", r.Method, "\"", " - unknown method. Using GET, POST, DELETE, UPDATE method.")
 	}
 }

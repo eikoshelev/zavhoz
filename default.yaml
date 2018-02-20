@@ -4,18 +4,18 @@ server:
     port: 8059
   dns:
     port: 53
-    network: udp        # string [udp|tcp]
+    network: udp
     ttl: 3600
 log:
-  network:              # string [udp|tcp]
+  network:
   host:
   port: 514
-  type: stderr          # string [syslog|file]
-  debug_mode: false     # bool
-  severity: LOG_INFO
-  facility: LOG_LOCAL3
-  file_path:
-  file_name:
+  type: stderr
+  debug_mode: false
+  severity: LOG_DEBUG
+  facility: LOG_LOCAL4
+  file_path: "./"
+  file_name: logger.log
 storage:
   login: Admin
   password: aadmin

@@ -25,34 +25,41 @@ type Inventory struct {
 
 func main() {
 
-	Logger := GetLogger()
-
-	config = configure()
-
-	Logger.Infof("Starting...\n", config)
+	Config = configure()
 
 	flag.Parse()
 
-	conn, err := gocb.Connect(config.Storage.Hosts[0])
+	Logger, err := initLogger()
 	if err != nil {
-		Logger.Error("Failed connect to host", config.Storage.Hosts[0], err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	_ = conn.Authenticate(gocb.PasswordAuthenticator{config.Storage.Login, config.Storage.Password})
 
-	bucket, err = conn.OpenBucket(config.Storage.Bucket, "")
+	Logger.Infof("Starting...\n")
+
+	conn, err := gocb.Connect(Config.Storage.Hosts[0])
 	if err != nil {
-		Logger.Error("Failed open bucket: ", config.Storage.Bucket, err)
+		Logger.Errorf("Failed connect to host: %s", err)
+	}
+	err = conn.Authenticate(gocb.PasswordAuthenticator{Config.Storage.Login, Config.Storage.Password})
+	if err != nil {
+		Logger.Errorf("Failed authenticate: %s", err)
+	}
+
+	bucket, err = conn.OpenBucket(Config.Storage.Bucket, "")
+	if err != nil {
+		Logger.Errorf("Failed open bucket: %s", err)
 	}
 
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
 
-	errr := http.ListenAndServe(":"+config.Server.Http.Port, nil)
+	errr := http.ListenAndServe(":"+Config.Server.Http.Port, nil)
 	if errr != nil {
-		Logger.Fatal("ListenAndServe: ", err)
+		Logger.Fatalf("ListenAndServe: %s", err)
 	}
 
-	server := &dns.Server{Addr: ":" + config.Server.Dns.Port, Net: config.Server.Dns.Network}
+	server := &dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
@@ -84,6 +91,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
 		if err != nil {
+			Logger.Debugf("Failed get: %s", name[:len(name)-1])
 			fmt.Println(name, err)
 			m.SetReply(r)
 			fmt.Println(m.Answer)
@@ -92,7 +100,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		answer := new(dns.A)
-		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Server.Dns.Ttl}
+		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.Dns.Ttl}
 		answer.A = net.ParseIP(host.Ip)
 		m.Answer = append(m.Answer, answer)
 	}

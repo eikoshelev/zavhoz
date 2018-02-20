@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/go-yaml/yaml"
@@ -41,22 +42,20 @@ type Conf struct {
 }
 
 var configFlag = flag.String("config", "./default.yaml", "set config file in the yaml format")
-var config Conf
+var Config Conf
 
 func configure() Conf {
 
-	Logger := GetLogger()
-
 	configFile, err := ioutil.ReadFile(*configFlag)
 	if err != nil {
-		Logger.Error("Failed read configuration file: ", err)
+		fmt.Println("Failed read configuration file: ", err)
 	}
 
 	var c Conf
 	err = yaml.Unmarshal(configFile, &c)
 
 	if err != nil {
-		Logger.Error("Failed unmarshal ", *configFlag, err)
+		fmt.Println("Failed unmarshal ", *configFlag, err)
 	}
 
 	return c
