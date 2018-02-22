@@ -23,7 +23,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		Logger.Errorf("SEARCH: Incorrect body request: %v", err) //TODO: обработка ошибки !!!
+		Logger.Errorf("SEARCH: Incorrect body request: %v", err)
 	}
 
 	search := make(map[string]interface{})

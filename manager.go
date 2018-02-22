@@ -69,15 +69,15 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 		cas, err := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
 		if err != nil {
-			Logger.Errorf("UPDATE: Failed getting and locking: %v", err) //TODO: обработка ошибки
+			Logger.Errorf("UPDATE: Failed getting and locking: %v", err)
 		}
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			Logger.Errorf("UPDATE: Incorrect body request: %v", err) //TODO: обработка ошибки
+			Logger.Errorf("UPDATE: Incorrect body request: %v", err)
 		}
 		err = json.Unmarshal(body, &document)
 		if err != nil {
-			Logger.Errorf("UPDATE: Can't unmarshal: %v", err) //TODO: обработка ошибки
+			Logger.Errorf("UPDATE: Can't unmarshal: %v", err)
 		}
 
 		cas, err = bucket.Replace(doc, &document, cas, 0)

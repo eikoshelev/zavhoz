@@ -54,8 +54,8 @@ func main() {
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
 
-	errr := http.ListenAndServe(":"+Config.Server.Http.Port, nil)
-	if errr != nil {
+	err = http.ListenAndServe(":"+Config.Server.Http.Port, nil)
+	if err != nil {
 		Logger.Fatalf("ListenAndServe: %s", err)
 	}
 
@@ -63,7 +63,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			Logger.Fatalf("Failed to set udp listener %s\n", err)
+			Logger.Fatalf("Failed to set udp listener %s", err)
 		}
 	}()
 
