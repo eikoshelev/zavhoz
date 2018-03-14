@@ -35,7 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	Logger.Infof("Starting...\n")
+	Logger.Infof("Started!\n")
 
 	conn, err := gocb.Connect(Config.Storage.Hosts[0])
 	if err != nil {
@@ -59,7 +59,33 @@ func main() {
 		Logger.Fatalf("ListenAndServe: %s", err)
 	}
 
-	server := &dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
+	server := dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
+
+	/*
+		config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+		if err != nil {
+			Logger.Fatalf("Can`t read file '/etc/resolv.conf': %s", err.Error())
+		}
+		c := new(dns.Client)
+
+		m := new(dns.Msg)
+		m.SetQuestion(dns.Fqdn(os.Args[1]), dns.TypeMX)
+		m.RecursionDesired = true
+
+		r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
+
+		if r == nil {
+			Logger.Fatalf("Error: %s\n", err.Error())
+		}
+
+		if r.Rcode != dns.RcodeSuccess {
+			Logger.Fatalf("Invalid answer name %s after MX query for %s\n", os.Args[1], os.Args[1])
+		}
+
+		for _, a := range r.Answer {
+			fmt.Printf("%v\n", a)
+		}
+	*/
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
@@ -76,8 +102,6 @@ func main() {
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
-
-	defer w.Close()
 
 	m := new(dns.Msg)
 	fmt.Println("handleRequest:inbound message:")
