@@ -16,7 +16,7 @@ import (
 var bucket *gocb.Bucket
 
 type Inventory struct {
-	Ip     string            `json:"ip,omitempty"`
+	IP     string            `json:"ip,omitempty"`
 	Tag    []string          `json:"tag,omitempty"`
 	Apps   []string          `json:"apps,omitempty"`
 	Active bool              `json:"active,omitempty"`
@@ -25,41 +25,52 @@ type Inventory struct {
 
 func main() {
 
-	Config = configure()
-
+	// парсим флаги
 	flag.Parse()
-
+	// читаем переданный конфиг
+	Config = configure()
+	// запускаем логгер
 	Logger, err := initLogger()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	Logger.Infof("Started!")
 
-	Logger.Infof("Started!\n")
-
+	// подключаемся к couchbase
 	conn, err := gocb.Connect(Config.Storage.Hosts[0])
 	if err != nil {
 		Logger.Errorf("Failed connect to host: %s", err)
 	}
+	// авторизуемся
 	err = conn.Authenticate(gocb.PasswordAuthenticator{Config.Storage.Login, Config.Storage.Password})
 	if err != nil {
 		Logger.Errorf("Failed authenticate: %s", err)
 	}
-
+	// открываем бакет для работы
 	bucket, err = conn.OpenBucket(Config.Storage.Bucket, "")
 	if err != nil {
 		Logger.Errorf("Failed open bucket: %s", err)
 	}
 
-	http.HandleFunc("/manager/", manager)
-	http.HandleFunc("/search/", search)
+	// запускаем локальный dns сервер
+	server := &dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			Logger.Fatalf("Failed to set udp listener %s", err.Error())
+		}
+	}()
+	// вызываем функцию-обработчик для наших dns запросов
+	dns.HandleFunc(".", handleRequest)
 
+	// запускаем http сервер
 	err = http.ListenAndServe(":"+Config.Server.Http.Port, nil)
 	if err != nil {
-		Logger.Fatalf("ListenAndServe: %s", err)
+		Logger.Fatalf("Failed to set http listener: %s", err)
 	}
-
-	server := dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
+	// отдельные инструменты для работы с документами бакета
+	http.HandleFunc("/manager/", manager)
+	http.HandleFunc("/search/", search)
 
 	/*
 		config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
@@ -87,14 +98,7 @@ func main() {
 		}
 	*/
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			Logger.Fatalf("Failed to set udp listener %s", err)
-		}
-	}()
-
-	dns.HandleFunc(".", handleRequest)
-
+	// для выхода из приложения по "Ctrl+C"
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
@@ -103,12 +107,18 @@ func main() {
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
+	Logger, err := initLogger()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	m := new(dns.Msg)
 	fmt.Println("handleRequest:inbound message:")
 	fmt.Printf("%+v", r)
+
 	for _, q := range r.Question {
 		name := q.Name
-		fmt.Println(name)
 
 		var host Inventory
 
@@ -122,10 +132,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			w.WriteMsg(m)
 			return
 		}
-
 		answer := new(dns.A)
 		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.Dns.Ttl}
-		answer.A = net.ParseIP(host.Ip)
+		answer.A = net.ParseIP(host.IP)
 		m.Answer = append(m.Answer, answer)
 	}
 	m.SetReply(r)
