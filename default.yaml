@@ -19,6 +19,6 @@ log:
 storage:
   login: Admin
   password: aadmin
-  bucket: testbucket
+  bucket: zavhoz
   hosts:
     - 127.0.0.1:8091
