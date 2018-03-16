@@ -11,11 +11,11 @@ log:
   host:
   port: 514
   type: stderr
-  debug_mode: false
+  debug mode: false
   severity: LOG_DEBUG
   facility: LOG_LOCAL4
-  file_path: "./"
-  file_name: logger.log
+  file path: "./"
+  file name: logger.log
 storage:
   login: Admin
   password: aadmin

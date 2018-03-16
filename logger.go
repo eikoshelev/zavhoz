@@ -10,7 +10,7 @@ import (
 	logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
 )
 
-// глобальный логер
+// Logger - глобальный логер
 var Logger *log.Logger
 
 // тип (вывод) логера берем из конфига
@@ -28,7 +28,7 @@ func initLogger() (*log.Logger, error) {
 	default:
 		return nil, errors.New("Incorrect out type for log!")
 	}
-	if Config.Log.Debug_mode {
+	if Config.Log.Debug {
 		logger.Out = os.Stdout
 	}
 

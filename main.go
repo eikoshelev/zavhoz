@@ -15,7 +15,7 @@ import (
 
 var bucket *gocb.Bucket
 
-type Inventory struct {
+type inventory struct {
 	IP     string            `json:"ip,omitempty"`
 	Tag    []string          `json:"tag,omitempty"`
 	Apps   []string          `json:"apps,omitempty"`
@@ -25,7 +25,7 @@ type Inventory struct {
 
 func main() {
 
-	// парсим флаги
+	// считываем флаг
 	flag.Parse()
 	// читаем переданный конфиг
 	Config = configure()
@@ -53,11 +53,12 @@ func main() {
 		Logger.Errorf("Failed open bucket: %s", err)
 	}
 
-	// запускаем локальный dns сервер
-	server := &dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
+	// запускаем локальный DNS сервер
+	server := &dns.Server{Addr: ":" + Config.Server.DNS.Port, Net: Config.Server.DNS.Network}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			Logger.Fatalf("Failed to set udp listener %s", err)
+			os.Exit(1)
 		}
 	}()
 	// вызываем функцию-обработчик для наших dns запросов
@@ -66,44 +67,21 @@ func main() {
 	// отдельные инструменты для работы с документами бакета
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
-	// запускаем http сервер
+	// запускаем HTTP сервер
 	go func() {
-		if err := http.ListenAndServe(":"+Config.Server.Http.Port, nil); err != nil {
+		if err := http.ListenAndServe(":"+Config.Server.HTTP.Port, nil); err != nil {
 			Logger.Fatalf("Failed to set http listener: %s", err)
+			os.Exit(1)
 		}
 	}()
 
-	/*
-		config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-		if err != nil {
-			Logger.Fatalf("Can`t read file '/etc/resolv.conf': %s", err.Error())
-		}
-		c := new(dns.Client)
-
-		m := new(dns.Msg)
-		m.SetQuestion(dns.Fqdn(os.Args[1]), dns.TypeMX)
-		m.RecursionDesired = true
-
-		r, _, err := c.Exchange(m, net.JoinHostPort(config.Servers[0], config.Port))
-
-		if r == nil {
-			Logger.Fatalf("Error: %s\n", err.Error())
-		}
-
-		if r.Rcode != dns.RcodeSuccess {
-			Logger.Fatalf("Invalid answer name %s after MX query for %s\n", os.Args[1], os.Args[1])
-		}
-
-		for _, a := range r.Answer {
-			fmt.Printf("%v\n", a)
-		}
-	*/
+	// TODO: dns client
 
 	// для выхода из приложения по "Ctrl+C"
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	Logger.Fatalf("Signal (%v) received, stopping\n", s)
+	Logger.Infof("Signal (%v) received, stopping\n", s)
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -121,12 +99,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	for _, q := range r.Question {
 		name := q.Name
 
-		var host Inventory
+		var host inventory
 
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
 		if err != nil {
-			Logger.Debugf("Failed get: %s", name[:len(name)-1])
+			Logger.Fatalf("Failed get: %s", name[:len(name)-1])
 			fmt.Println(name, err)
 			m.SetReply(r)
 			fmt.Println(m.Answer)
@@ -134,7 +112,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			return
 		}
 		answer := new(dns.A)
-		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.Dns.Ttl}
+		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.DNS.TTL}
 		answer.A = net.ParseIP(host.IP)
 		m.Answer = append(m.Answer, answer)
 	}

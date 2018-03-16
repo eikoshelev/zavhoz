@@ -13,7 +13,7 @@ import (
 
 func search(w http.ResponseWriter, r *http.Request) {
 
-	var answer []Inventory
+	var answer []inventory
 
 	Logger, err := initLogger()
 	if err != nil {
@@ -83,7 +83,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	// получаем все подходящие документы по их id
 	for _, hit := range rows.Hits() {
 
-		var ans Inventory
+		var ans inventory
 
 		_, err := bucket.Get(hit.Id, &ans)
 		if err != nil {

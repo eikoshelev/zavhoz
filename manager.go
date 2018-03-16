@@ -23,7 +23,7 @@ func manager(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 
-		var document Inventory
+		var document inventory
 
 		doc := r.URL.Path[len("/manager/"):]
 		_, err := bucket.Get(doc, &document)
@@ -39,7 +39,7 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 
-		var result Inventory
+		var result inventory
 
 		doc := r.URL.Path[len("/manager/"):]
 		body, err := ioutil.ReadAll(r.Body)
@@ -65,7 +65,7 @@ func manager(w http.ResponseWriter, r *http.Request) {
 
 		doc := r.URL.Path[len("/manager/"):]
 
-		var document Inventory
+		var document inventory
 
 		cas, err := bucket.GetAndLock(doc, 10, &document) //TODO: set time lock
 		if err != nil {
