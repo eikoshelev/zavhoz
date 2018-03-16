@@ -57,20 +57,21 @@ func main() {
 	server := &dns.Server{Addr: ":" + Config.Server.Dns.Port, Net: Config.Server.Dns.Network}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			Logger.Fatalf("Failed to set udp listener %s", err.Error())
+			Logger.Fatalf("Failed to set udp listener %s", err)
 		}
 	}()
 	// вызываем функцию-обработчик для наших dns запросов
 	dns.HandleFunc(".", handleRequest)
 
-	// запускаем http сервер
-	err = http.ListenAndServe(":"+Config.Server.Http.Port, nil)
-	if err != nil {
-		Logger.Fatalf("Failed to set http listener: %s", err)
-	}
 	// отдельные инструменты для работы с документами бакета
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
+	// запускаем http сервер
+	go func() {
+		if err := http.ListenAndServe(":"+Config.Server.Http.Port, nil); err != nil {
+			Logger.Fatalf("Failed to set http listener: %s", err)
+		}
+	}()
 
 	/*
 		config, err := dns.ClientConfigFromFile("/etc/resolv.conf")
