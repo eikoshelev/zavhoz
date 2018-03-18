@@ -64,5 +64,5 @@ sudo ./zavhoz
     * Поиск записей id которых содержит "host" и удовлетворяющих телу запроса:
     
     ```
-    curl 127.0.0.1:8059/search/doc -d '{"ip":"0.0.0.0","tag":["one", "two"],"apps":["foo","bar"],"active":true,"params":{"key1":"val1","key2":"val2"}}'
+    curl 127.0.0.1:8059/search/host -d '{"ip":"0.0.0.0","tag":["one", "two"],"apps":["foo","bar"],"active":true,"params":{"key1":"val1","key2":"val2"}}'
     ```
