@@ -43,7 +43,7 @@ type Conf struct {
 	} `yaml:"storage"`
 }
 
-var configFlag = flag.String("config", "./default.yaml", "set config file in the yaml format")
+var configFlag = flag.String("config", "./config.yaml", "set config file in the yaml format")
 
 // Config - объявляем переменную для работы с данными конфига
 var Config Conf

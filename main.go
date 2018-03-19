@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/couchbase/gocb"
 	"github.com/miekg/dns"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var bucket *gocb.Bucket
@@ -27,8 +27,10 @@ func main() {
 
 	// считываем флаг
 	flag.Parse()
+
 	// читаем переданный конфиг
 	Config = configure()
+
 	// запускаем логгер
 	Logger, err := initLogger()
 	if err != nil {
@@ -64,6 +66,16 @@ func main() {
 	// вызываем функцию-обработчик для наших dns запросов
 	dns.HandleFunc(".", handleRequest)
 
+	// метрики Prometheus
+	http.Handle("/metrics", promhttp.Handler())
+	//TODO: вынести порт в конфиг
+	go func() {
+		if err := http.ListenAndServe(":8060", nil); err != nil {
+			Logger.Fatalf("Failed to set http listener: %s", err)
+			os.Exit(1)
+		}
+	}()
+
 	// отдельные инструменты для работы с документами бакета
 	http.HandleFunc("/manager/", manager)
 	http.HandleFunc("/search/", search)
@@ -75,48 +87,9 @@ func main() {
 		}
 	}()
 
-	// TODO: dns client
-
 	// для выхода из приложения по "Ctrl+C"
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
 	Logger.Infof("Signal (%v) received, stopping\n", s)
-}
-
-func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
-
-	Logger, err := initLogger()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	m := new(dns.Msg)
-	fmt.Println("handleRequest:inbound message:")
-	fmt.Printf("%+v", r)
-
-	for _, q := range r.Question {
-		name := q.Name
-
-		var host inventory
-
-		_, err := bucket.Get(name[:len(name)-1], &host)
-
-		if err != nil {
-			Logger.Fatalf("Failed get: %s", name[:len(name)-1])
-			fmt.Println(name, err)
-			m.SetReply(r)
-			fmt.Println(m.Answer)
-			w.WriteMsg(m)
-			return
-		}
-		answer := new(dns.A)
-		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.DNS.TTL}
-		answer.A = net.ParseIP(host.IP)
-		m.Answer = append(m.Answer, answer)
-	}
-	m.SetReply(r)
-	fmt.Printf("%+v\n", m)
-	w.WriteMsg(m)
 }

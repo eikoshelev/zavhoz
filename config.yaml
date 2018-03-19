@@ -3,7 +3,7 @@ server:
   http:
     port: 8059
   dns:
-    port: 53
+    port: 57
     network: udp
     ttl: 3600
 log:
@@ -19,6 +19,6 @@ log:
 storage:
   login: Admin
   password: aadmin
-  bucket: zavhoz
+  bucket: testbucket
   hosts:
     - 127.0.0.1:8091

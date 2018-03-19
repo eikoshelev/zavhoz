@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/couchbase/gocb"
 	"github.com/couchbase/gocb/cbft"
@@ -15,11 +14,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	var answer []inventory
 
-	Logger, err := initLogger()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	Logger, _ := initLogger()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -78,7 +73,10 @@ func search(w http.ResponseWriter, r *http.Request) {
 	// отправляем запрос
 	rows, err := bucket.ExecuteSearchQuery(req)
 	if err != nil {
+		totalRequestHttp.WithLabelValues("400").Inc()
 		Logger.Errorf("SEARCH: Failed to send request: %v", err)
+	} else {
+		totalRequestHttp.WithLabelValues("200").Inc()
 	}
 	// получаем все подходящие документы по их id
 	for _, hit := range rows.Hits() {
@@ -87,7 +85,10 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 		_, err := bucket.Get(hit.Id, &ans)
 		if err != nil {
+			totalRequestHttp.WithLabelValues("404").Inc()
 			Logger.Errorf("SEARCH: Failed to get note: %v", err)
+		} else {
+			totalRequestHttp.WithLabelValues("200").Inc()
 		}
 		answer = append(answer, ans)
 
