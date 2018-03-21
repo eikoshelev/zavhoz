@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/couchbase/gocb"
 	"github.com/couchbase/gocb/cbft"
@@ -73,10 +74,10 @@ func search(w http.ResponseWriter, r *http.Request) {
 	// отправляем запрос
 	rows, err := bucket.ExecuteSearchQuery(req)
 	if err != nil {
-		totalRequestHttp.WithLabelValues("400").Inc()
+		totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusBadRequest)).Inc()
 		Logger.Errorf("SEARCH: Failed to send request: %v", err)
 	} else {
-		totalRequestHttp.WithLabelValues("200").Inc()
+		totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusOK)).Inc()
 	}
 	// получаем все подходящие документы по их id
 	for _, hit := range rows.Hits() {
@@ -85,10 +86,10 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 		_, err := bucket.Get(hit.Id, &ans)
 		if err != nil {
-			totalRequestHttp.WithLabelValues("404").Inc()
+			totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusNotFound)).Inc()
 			Logger.Errorf("SEARCH: Failed to get note: %v", err)
 		} else {
-			totalRequestHttp.WithLabelValues("200").Inc()
+			totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusOK)).Inc()
 		}
 		answer = append(answer, ans)
 

@@ -26,7 +26,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
 		if err != nil {
-			totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeServerFailure)).Inc()
+			totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeNameError)).Inc()
 			Logger.Errorf("Failed get: %s", name[:len(name)-1])
 			fmt.Println(name, err)
 			m.SetReply(r)
@@ -35,7 +35,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			return
 		}
 
-		totalRequestDns.WithLabelValues("0").Inc()
+		totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeSuccess)).Inc()
 
 		answer := new(dns.A)
 		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.DNS.TTL}
