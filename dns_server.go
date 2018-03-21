@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/miekg/dns"
 )
@@ -25,7 +26,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		_, err := bucket.Get(name[:len(name)-1], &host)
 
 		if err != nil {
-			totalRequestDns.WithLabelValues("3").Inc()
+			totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeServerFailure)).Inc()
 			Logger.Errorf("Failed get: %s", name[:len(name)-1])
 			fmt.Println(name, err)
 			m.SetReply(r)
