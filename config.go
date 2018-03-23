@@ -41,6 +41,10 @@ type Conf struct {
 		Bucket   string   `yaml:"bucket"`
 		Hosts    []string `yaml:"hosts"`
 	} `yaml:"storage"`
+
+	Metrics struct {
+		Port string `yaml:"port"`
+	} `yaml:"metrics"`
 }
 
 var configFlag = flag.String("config", "./config.yaml", "set config file in the yaml format")

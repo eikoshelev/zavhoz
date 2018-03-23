@@ -70,7 +70,7 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 	//TODO: вынести порт в конфиг
 	go func() {
-		if err := http.ListenAndServe(":8060", nil); err != nil {
+		if err := http.ListenAndServe(":"+Config.Metrics.Port, nil); err != nil {
 			Logger.Fatalf("Failed to set http listener: %s", err)
 			os.Exit(1)
 		}

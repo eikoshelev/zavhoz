@@ -1,4 +1,4 @@
-title: uhblya
+title: zavhoz
 server:
   http:
     port: 8059
@@ -22,3 +22,5 @@ storage:
   bucket: testbucket
   hosts:
     - 127.0.0.1:8091
+metrics:
+  port: 8060
