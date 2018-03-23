@@ -70,3 +70,9 @@ sudo ./zavhoz
     ```
     curl 127.0.0.1:8059/search/host -d '{"ip":"0.0.0.0","tag":["one", "two"],"apps":["foo","bar"],"active":true,"params":{"key1":"val1","key2":"val2"}}'
     ```
+## Использованные библиотеки
+* **The Couchbase Go SDK** - github.com/couchbase/gocb
+* **DNS library in Go** - github.com/miekg/dns
+* **Prometheus instrumentation library for Go applications** - github.com/prometheus/client_golang
+* **Structured, pluggable logging for Go** - github.com/sirupsen/logrus
+* **YAML support for the Go language** - github.com/go-yaml/yaml
