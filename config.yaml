@@ -1,19 +1,19 @@
 title: zavhoz
 server:
   http:
-    port: 8059
+    port: :8059
   dns:
-    port: 57
+    port: :57
     network: udp
     ttl: 3600
 log:
   network:
   host:
-  port: 514
+  port: :514
   type: stderr
   debug mode: false
   severity: LOG_DEBUG
-  facility: LOG_LOCAL4
+  facility: LOG_LOCAL3
   file path: "./"
   file name: logger.log
 storage:
@@ -23,4 +23,4 @@ storage:
   hosts:
     - 127.0.0.1:8091
 metrics:
-  port: 8060
+  port: :8060

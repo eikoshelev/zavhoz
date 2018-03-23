@@ -15,6 +15,7 @@ import (
 
 var bucket *gocb.Bucket
 
+// структура записи в бакете
 type inventory struct {
 	IP     string            `json:"ip,omitempty"`
 	Tag    []string          `json:"tag,omitempty"`
@@ -37,7 +38,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	Logger.Infof("Started!")
+	Logger.Infof("Started work!")
 
 	// подключаемся к couchbase
 	conn, err := gocb.Connect(Config.Storage.Hosts[0])
@@ -56,7 +57,7 @@ func main() {
 	}
 
 	// запускаем локальный DNS сервер
-	server := &dns.Server{Addr: ":" + Config.Server.DNS.Port, Net: Config.Server.DNS.Network}
+	server := &dns.Server{Addr: Config.Server.DNS.Port, Net: Config.Server.DNS.Network}
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			Logger.Fatalf("Failed to set udp listener %s", err)
@@ -70,7 +71,7 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 	//TODO: вынести порт в конфиг
 	go func() {
-		if err := http.ListenAndServe(":"+Config.Metrics.Port, nil); err != nil {
+		if err := http.ListenAndServe(Config.Metrics.Port, nil); err != nil {
 			Logger.Fatalf("Failed to set http listener: %s", err)
 			os.Exit(1)
 		}
@@ -81,7 +82,7 @@ func main() {
 	http.HandleFunc("/search/", search)
 	// запускаем HTTP сервер
 	go func() {
-		if err := http.ListenAndServe(":"+Config.Server.HTTP.Port, nil); err != nil {
+		if err := http.ListenAndServe(Config.Server.HTTP.Port, nil); err != nil {
 			Logger.Fatalf("Failed to set http listener: %s", err)
 			os.Exit(1)
 		}
@@ -91,5 +92,5 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	Logger.Infof("Signal (%v) received, stopping\n", s)
+	Logger.Infof("Finished work!\nSignal (%v) received, stopping\n", s)
 }

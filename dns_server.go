@@ -33,10 +33,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			fmt.Println(m.Answer)
 			w.WriteMsg(m)
 			return
+		} else {
+			totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeSuccess)).Inc()
 		}
-
-		totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeSuccess)).Inc()
-
 		answer := new(dns.A)
 		answer.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: Config.Server.DNS.TTL}
 		answer.A = net.ParseIP(host.IP)

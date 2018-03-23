@@ -18,8 +18,6 @@ var (
 
 func init() {
 
-	//Logger, _ := initLogger()
-
 	prometheus.MustRegister(totalRequestDns)
 	prometheus.MustRegister(totalRequestHttp)
 }
