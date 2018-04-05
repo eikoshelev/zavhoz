@@ -19,14 +19,16 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		Logger.Errorf("SEARCH: Incorrect body request: %v", err)
+		Logger.Errorf("SEARCH: Incorrect body request: %s", err)
+		fmt.Fprintf(w, "SEARCH: Incorrect body request: %s \n", err)
 	}
 
 	search := make(map[string]interface{})
 
 	err = json.Unmarshal(body, &search)
 	if err != nil {
-		Logger.Errorf("SEARCH: Can`t unmarshal: %v", err)
+		Logger.Errorf("SEARCH: Can`t unmarshal: %s", err)
+		fmt.Fprintf(w, "SEARCH: Can`t unmarshal: %s \n", err)
 	}
 
 	// слайс для хранения запроса
@@ -75,7 +77,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 	rows, err := bucket.ExecuteSearchQuery(req)
 	if err != nil {
 		totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusBadRequest)).Inc()
-		Logger.Errorf("SEARCH: Failed to send request: %v", err)
+		Logger.Errorf("SEARCH: Failed to send request: %s", err)
+		fmt.Fprintf(w, "SEARCH: Failed to send request: %s \n", err)
 	} else {
 		totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusOK)).Inc()
 	}
@@ -87,7 +90,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 		_, err := bucket.Get(hit.Id, &ans)
 		if err != nil {
 			totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusNotFound)).Inc()
-			Logger.Errorf("SEARCH: Failed to get note: %v", err)
+			Logger.Errorf("SEARCH: Failed to get note: %s", err)
+			fmt.Fprintf(w, "SEARCH: Failed to get note: %s \n", err)
 		} else {
 			totalRequestHttp.WithLabelValues(strconv.Itoa(http.StatusOK)).Inc()
 		}
@@ -97,7 +101,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 
 	jsonDocument, err := json.Marshal(&answer)
 	if err != nil {
-		Logger.Errorf("SEARCH: Can`t marshal: %v", err)
+		Logger.Errorf("SEARCH: Can`t marshal: %s", err)
+		fmt.Fprintf(w, "SEARCH: Can`t marshal: %s \n", err)
 	}
-	fmt.Fprintf(w, "%v\n", string(jsonDocument))
+	fmt.Fprintf(w, "%s \n", string(jsonDocument))
 }

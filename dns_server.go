@@ -27,8 +27,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		if err != nil {
 			totalRequestDns.WithLabelValues(strconv.Itoa(dns.RcodeNameError)).Inc()
-			Logger.Errorf("Failed get: %s", name[:len(name)-1])
-			fmt.Println(name, err)
+			Logger.Errorf("DNS: Failed get: %s", name[:len(name)-1])
+			fmt.Fprint(w, "DNS: Failed get: %s \n", name[:len(name)-1])
 			m.SetReply(r)
 			fmt.Println(m.Answer)
 			w.WriteMsg(m)

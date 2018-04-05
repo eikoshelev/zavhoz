@@ -69,7 +69,7 @@ func main() {
 
 	// метрики Prometheus
 	http.Handle("/metrics", promhttp.Handler())
-	//TODO: вынести порт в конфиг
+
 	go func() {
 		if err := http.ListenAndServe(Config.Metrics.Port, nil); err != nil {
 			Logger.Fatalf("Failed to set http listener: %s", err)
